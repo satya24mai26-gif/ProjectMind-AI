@@ -4,6 +4,18 @@ import { ChangeEvent } from "react";
 
 import { useGraphStore } from "../../store/graphStore";
 
+import {
+  updateNode as updateNodeApi
+} from "../../services/api";
+
+import {
+  deleteNode
+} from "../../services/api";
+
+import {
+  buildContext,
+} from "../../services/contextBuilder";
+
 export default function NodeInspector() {
   const nodes = useGraphStore((state) => state.nodes);
 
@@ -19,9 +31,20 @@ export default function NodeInspector() {
     (node) => node.id === selectedNodeId
   );
 
+  const edges = useGraphStore(
+    (state) => state.edges
+  );
+  
   if (!selectedNode) {
     return null;
   }
+
+  const context =
+  buildContext(
+    selectedNode,
+    edges,
+    nodes
+  );
 
   const handleTitleChange = (
     e: ChangeEvent<HTMLInputElement>
@@ -37,7 +60,9 @@ export default function NodeInspector() {
     updateNode(selectedNode.id, {
       description: e.target.value,
     });
+
   };
+  
 
   return (
     <div className="absolute top-0 right-0 w-[320px] h-full bg-white border-l p-4 z-20 shadow-lg overflow-y-auto">
@@ -138,6 +163,67 @@ export default function NodeInspector() {
     className="w-full border rounded px-3 py-2 min-h-[200px]"
   />
 </div>
+<button
+  onClick={async () => {
+
+    await updateNodeApi(
+      Number(selectedNode.id),
+      {
+        title:
+          selectedNode.data.title,
+
+        description:
+          selectedNode.data.description,
+
+        node_type:
+          selectedNode.data.nodeType,
+
+        notes:
+          selectedNode.data.notes,
+      }
+    );
+
+    alert("Saved");
+  }}
+  className="bg-black text-white px-4 py-2 rounded"
+>
+  Save Node
+</button>
+
+<button
+  onClick={async () => {
+
+    await deleteNode(
+      Number(selectedNode.id)
+    );
+
+    window.location.reload();
+
+  }}
+  className="bg-red-500 text-white px-4 py-2 rounded ml-2"
+>
+  Delete Node
+</button>
+
+<button
+  onClick={() => {
+
+    console.log(
+      context
+    );
+
+  }}
+  className="
+    bg-blue-500
+    text-white
+    px-4
+    py-2
+    rounded
+    mt-4
+  "
+>
+  Show Context
+</button>
         </div>
 
       </div>

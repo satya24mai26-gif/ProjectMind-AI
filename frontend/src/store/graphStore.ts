@@ -31,7 +31,16 @@ type GraphState = {
 
   setSelectedNode: (id: string | null) => void;
 
+  setNodes: (nodes: Node[]) => void;
+
+  setEdges: (edges: Edge[]) => void;
+
   addMessage: (
+    nodeId: string,
+    content: string
+  ) => void;
+
+  addAssistantMessage: (
     nodeId: string,
     content: string
   ) => void;
@@ -42,8 +51,15 @@ type GraphState = {
       title?: string;
       description?: string;
       notes?: string;
+      nodeType?: string;
     }
   ) => void;
+
+selectedEdgeId: string | null;
+
+setSelectedEdge: (
+  id: string | null
+) => void;
   
 };
 
@@ -57,6 +73,18 @@ export const useGraphStore = create<GraphState>()(
       setSelectedNode: (id) => {
         set({
           selectedNodeId: id,
+        });
+      },
+
+      setNodes: (nodes) => {
+        set({
+          nodes,
+        });
+      },
+
+      setEdges: (edges) => {
+        set({
+          edges,
         });
       },
 
@@ -102,6 +130,44 @@ export const useGraphStore = create<GraphState>()(
             };
           }),
         });
+      },
+
+      addAssistantMessage: (
+        nodeId,
+        content
+      ) => {
+        set({
+          nodes: get().nodes.map((node) => {
+            if (node.id !== nodeId) {
+              return node;
+            }
+      
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                messages: [
+                  ...node.data.messages,
+                  {
+                    id: crypto.randomUUID(),
+                    role: "assistant",
+                    content,
+                    createdAt:
+                      new Date().toISOString(),
+                  },
+                ],
+              },
+            };
+          }),
+        });
+      },
+
+      selectedEdgeId: null,
+
+setSelectedEdge: (id) => {
+  set({
+    selectedEdgeId: id,
+  });
       },
       
 
