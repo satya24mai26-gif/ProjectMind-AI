@@ -60,6 +60,12 @@ selectedEdgeId: string | null;
 setSelectedEdge: (
   id: string | null
 ) => void;
+
+selectedProjectId: number;
+
+setSelectedProjectId: (
+  id: number
+) => void;
   
 };
 
@@ -163,6 +169,16 @@ export const useGraphStore = create<GraphState>()(
       },
 
       selectedEdgeId: null,
+
+selectedProjectId: 1,
+
+setSelectedProjectId: (
+  id
+) => {
+  set({
+    selectedProjectId: id,
+  });
+},
 
 setSelectedEdge: (id) => {
   set({

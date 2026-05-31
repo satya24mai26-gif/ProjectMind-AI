@@ -5,6 +5,7 @@ from "../../store/graphStore";
 
 import {
     updateRelationship,
+    deleteRelationship
   } from "../../services/api";
 
 export default function EdgeInspector() {
@@ -24,6 +25,10 @@ export default function EdgeInspector() {
     (e) => e.id === selectedEdgeId
   );
 
+  const setEdges = useGraphStore(
+    (state) => state.setEdges
+  );
+
   if (!edge) {
     return null;
   }
@@ -35,14 +40,33 @@ export default function EdgeInspector() {
       <h2 className="font-bold mb-4">Edge Inspector</h2>
 
       <select
-        value={edge.label}
+        value={String(edge.label ?? "references")}
         onChange={async (e) => {
           const relationType = e.target.value;
 
-          const relationshipId = Number(edge.id.replace("edge-", ""));
+          const relationshipId = Number(edge.id);
+
+          console.log(
+            "EDGE ID:",
+            edge.id
+          );
 
           await updateRelationship(relationshipId, relationType);
-          window.location.reload();
+          setEdges(
+            edges.map((existingEdge) => {
+              if (
+                existingEdge.id !== edge.id
+              ) {
+                return existingEdge;
+              }
+          
+              return {
+                ...existingEdge,
+                label: relationType,
+              };
+            })
+          );
+          console.log(edge);
         }}
       >
         <option value="references">References</option>
@@ -57,6 +81,28 @@ export default function EdgeInspector() {
 
         <option value="related_to">Related To</option>
       </select>
+      <button
+  className="mt-4 bg-red-500 text-white px-4 py-2 rounded"
+  onClick={async () => {
+
+    const relationshipId =
+      Number(edge.id);
+
+    await deleteRelationship(
+      relationshipId
+    );
+
+    setEdges(
+      edges.filter(
+        (existingEdge) =>
+          existingEdge.id !== edge.id
+      )
+    );
+
+  }}
+>
+  Delete Relationship
+</button>
     </div>
   );
 }

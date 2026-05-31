@@ -10,7 +10,10 @@ from database.models import Node
 
 from fastapi.middleware.cors import CORSMiddleware
 
-from schemas.node import NodeCreate
+from schemas.node import (
+    NodeCreate,
+    NodePositionUpdate
+)
 
 
 from database.models import Relationship
@@ -20,6 +23,12 @@ from schemas.relationship import (
 )
 
 from schemas.ai import AIRequest
+
+from schemas.project import ProjectCreate
+
+from fastapi import Depends
+from sqlalchemy.orm import Session
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -52,19 +61,35 @@ def health():
     }
 
 @app.post("/projects")
-def create_project():
+def create_project(
+    data: ProjectCreate
+):
 
     db = SessionLocal()
 
     project = Project(
-        name="My First Project"
-    )
+    name=data.name,
+    description=data.description
+)
 
     db.add(project)
     db.commit()
     db.refresh(project)
 
-    return project
+    try:
+        return project
+    finally:
+        db.close()
+
+@app.get("/projects")
+def get_projects():
+
+    db = SessionLocal()
+
+    try:
+        return db.query(Project).all()
+    finally:
+        db.close()
 
 @app.post("/nodes")
 def create_node(data: NodeCreate):
@@ -72,7 +97,7 @@ def create_node(data: NodeCreate):
     db = SessionLocal()
 
     node = Node(
-    project_id=1,
+    project_id=data.project_id,
     title=data.title,
     description=data.description,
     node_type=data.node_type,
@@ -85,14 +110,21 @@ def create_node(data: NodeCreate):
 
     db.refresh(node)
 
-    return node
+    try:
+        return node
+    finally:
+        db.close()
 
 @app.get("/nodes")
-def get_nodes():
+def get_nodes(
+    project_id: int
+):
 
     db = SessionLocal()
-
-    return db.query(Node).all()
+    try:
+        return (db.query(Node).filter(Node.project_id == project_id).all())
+    finally:
+        db.close()
 
 @app.put("/nodes/{node_id}")
 def update_node(
@@ -108,6 +140,7 @@ def update_node(
     )
 
     if not node:
+        db.close()
         return {
             "error": "Node not found"
         }
@@ -120,7 +153,10 @@ def update_node(
     db.commit()
     db.refresh(node)
 
-    return node
+    try:
+        return node
+    finally:
+        db.close()
 
 @app.delete("/nodes/{node_id}")
 def delete_node(node_id: int):
@@ -134,6 +170,7 @@ def delete_node(node_id: int):
     )
 
     if not node:
+        db.close()
         return {
             "error": "Node not found"
         }
@@ -151,11 +188,11 @@ def delete_node(node_id: int):
     for relationship in relationships:
         db.delete(relationship)
 
-        db.delete(node)
+    db.delete(node)
 
-        db.commit()
+    db.commit()
 
-        return {
+    return {
         "message": "Node deleted"
     }
 
@@ -166,10 +203,11 @@ def create_relationship(
     db = SessionLocal()
 
     relationship = Relationship(
-        source_node_id=data.source_node_id,
-        target_node_id=data.target_node_id,
-        relation_type=data.relation_type,
-    )
+    source_node_id=data.source_node_id,
+    target_node_id=data.target_node_id,
+    relation_type=data.relationship_type,
+    project_id=data.project_id
+)
 
     db.add(relationship)
 
@@ -177,17 +215,27 @@ def create_relationship(
 
     db.refresh(relationship)
 
-    return relationship
+    try:
+        return relationship
+    finally:
+        db.close()
 
 @app.get("/relationships")
-def get_relationships():
-
+def get_relationships(
+    project_id: int
+):
     db = SessionLocal()
-
-    return (
-        db.query(Relationship)
+    try: 
+        return (
+          db.query(Relationship)
+          .filter(
+            Relationship.project_id
+           == project_id
+           )
         .all()
-    )
+        )
+    finally:
+        db.close()
 
 @app.put("/relationships/{relationship_id}")
 def update_relationship(
@@ -196,27 +244,35 @@ def update_relationship(
 ):
     db = SessionLocal()
 
-    relationship = (
-        db.query(Relationship)
-        .filter(
-            Relationship.id == relationship_id
+    try:
+
+        relationship = (
+            db.query(Relationship)
+            .filter(
+                Relationship.id ==
+                relationship_id
+            )
+            .first()
         )
-        .first()
-    )
 
-    if not relationship:
-        return {
-            "error": "Relationship not found"
-        }
+        if not relationship:
+            return {
+                "error":
+                "Relationship not found"
+            }
 
-    relationship.relation_type = (
-        data.relation_type
-    )
+        relationship.relation_type = (
+            data.relation_type
+        )
 
-    db.commit()
-    db.refresh(relationship)
+        db.commit()
 
-    return relationship
+        db.refresh(relationship)
+
+        return relationship
+
+    finally:
+        db.close()
 
 @app.post("/ai/chat")
 def ai_chat(data: AIRequest):
@@ -230,3 +286,68 @@ Context:
 {data.context}
 """
     }
+
+@app.put("/nodes/{node_id}/position")
+def update_node_position(
+    node_id: int,
+    data: NodePositionUpdate
+):
+    db = SessionLocal()
+
+    try:
+        node = (
+            db.query(Node)
+            .filter(Node.id == node_id)
+            .first()
+        )
+
+        if not node:
+            return {
+                "error":
+                "Node not found"
+            }
+
+        node.position_x = data.position_x
+        node.position_y = data.position_y
+
+        db.commit()
+
+        db.refresh(node)
+
+        return node
+
+    finally:
+        db.close()
+
+@app.delete("/relationships/{relationship_id}")
+def delete_relationship(
+    relationship_id: int
+):
+    db = SessionLocal()
+
+    try:
+        relationship = (
+            db.query(Relationship)
+            .filter(
+                Relationship.id ==
+                relationship_id
+            )
+            .first()
+        )
+
+        if not relationship:
+            return {
+                "error":
+                "Relationship not found"
+            }
+
+        db.delete(relationship)
+
+        db.commit()
+
+        return {
+            "success": True
+        }
+
+    finally:
+        db.close()

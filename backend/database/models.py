@@ -4,6 +4,8 @@ from sqlalchemy import String
 
 from .db import Base
 
+from sqlalchemy import Text
+
 
 class Project(Base):
     __tablename__ = "projects"
@@ -17,6 +19,11 @@ class Project(Base):
     name = Column(
         String,
         nullable=False
+    )
+
+    description = Column(
+        Text,
+        default=""
     )
 
 from sqlalchemy import Text
@@ -57,6 +64,16 @@ class Node(Base):
         default=""
     )
 
+    position_x = Column(
+        Integer,
+        default=100
+    )
+
+    position_y = Column(
+        Integer,
+        default=100
+    )
+
 
 class Message(Base):
     __tablename__ = "messages"
@@ -84,6 +101,11 @@ class Message(Base):
 
 class Relationship(Base):
     __tablename__ = "relationships"
+
+    project_id = Column(
+    Integer,
+    nullable=False
+    )
 
     id = Column(
         Integer,

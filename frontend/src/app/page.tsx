@@ -18,31 +18,48 @@ import {
 
 import { useEffect } from "react";
 
+import ProjectSelector from "@/components/graph/ProjectSelector";
+
 export default function Home() {
 
   const clearGraph = useGraphStore(
     (state) => state.clearGraph
   );
 
+  const selectedProjectId =
+  useGraphStore(
+    (state) =>
+      state.selectedProjectId
+  );
+
   const setNodes = useGraphStore(
     (state) => state.setNodes
   );
 
-  useEffect(() => {loadNodes();
-  }, []);
+  useEffect(() => {
+    loadGraph();
+  }, [selectedProjectId]);
 
-  const loadNodes = async () => {
-  const dbNodes = await getNodes();
+  const loadGraph = async () => {
+  const dbNodes = await getNodes(selectedProjectId);
 
-  const dbRelationships = await getRelationships();
-
+  const dbRelationships = await getRelationships(selectedProjectId);
+  console.log(
+    "Relationships:",
+    dbRelationships
+  );
   const flowNodes = dbNodes.map(
     (node: any, index: number) => ({
       id: String(node.id),
 
       position: {
-        x: 200 * index,
-        y: 100,
+        x: isNaN(Number(node.position_x))
+          ? 100
+          : Number(node.position_x),
+      
+        y: isNaN(Number(node.position_y))
+          ? 100
+          : Number(node.position_y),
       },
 
       type: "projectmind",
@@ -63,12 +80,20 @@ export default function Home() {
   const validNodeIds =
   new Set(
     flowNodes.map(
-      (node) => node.id
+      (node: any) => node.id
     )
   );
+
+  const safeRelationships =
+  Array.isArray(
+    dbRelationships
+  )
+    ? dbRelationships
+    : [];
+
   const flowEdges =
-  dbRelationships.filter(
-    (relationship) =>
+  safeRelationships.filter(
+    (relationship: any) =>
       validNodeIds.has(
         String(
           relationship.source_node_id
@@ -82,21 +107,14 @@ export default function Home() {
   )
   .map(
     (relationship: any) => ({
-      id:
-        `edge-${relationship.id}`,
-
-      source:
-        String(
-          relationship.source_node_id
-        ),
-
-      target:
-        String(
-          relationship.target_node_id
-        ),
-
-      label:
-        relationship.relation_type,
+      id: String(relationship.id),
+      source: String(
+        relationship.source_node_id
+      ),
+      target: String(
+        relationship.target_node_id
+      ),
+      label: relationship.relation_type,
     })
   );
 
@@ -110,10 +128,11 @@ export default function Home() {
   async () => {
 
     await createNode(
-      `Node ${Date.now()}`
+      `Node ${Date.now()}`,
+      selectedProjectId
     );
 
-    await loadNodes();
+    await loadGraph();
   };
 
   const setEdges = useGraphStore(
@@ -124,7 +143,9 @@ export default function Home() {
 
   return (
     <main className="w-screen h-screen relative">
+      
       <div className="absolute top-4 left-4 z-10 flex gap-2">
+      <ProjectSelector />
         <button
           onClick={handleCreateNode}
           className="bg-black text-white px-4 py-2 rounded"

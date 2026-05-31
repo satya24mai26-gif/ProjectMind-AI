@@ -1,7 +1,8 @@
 const API_URL = "http://127.0.0.1:8000";
 
 export async function createNode(
-  title: string
+  title: string,
+  projectId: number
 ) {
   const response = await fetch(
     `${API_URL}/nodes`,
@@ -18,6 +19,7 @@ export async function createNode(
         description: "",
         node_type: "research",
         notes: "",
+        project_id: projectId,
       }),
     }
   );
@@ -25,10 +27,14 @@ export async function createNode(
   return response.json();
 }
 
-export async function getNodes() {
-  const response = await fetch(
-    `${API_URL}/nodes`
-  );
+export async function getNodes(
+  projectId: number
+) {
+
+  const response =
+    await fetch(
+      `${API_URL}/nodes?project_id=${projectId}`
+    );
 
   return response.json();
 }
@@ -75,7 +81,8 @@ export async function updateNode(
   export async function createRelationship(
     sourceNodeId: number,
     targetNodeId: number,
-    relationType: string
+    relationType: string,
+    projectId: number
   ) {
     const response = await fetch(
       `${API_URL}/relationships`,
@@ -88,14 +95,10 @@ export async function updateNode(
         },
   
         body: JSON.stringify({
-          source_node_id:
-            sourceNodeId,
-  
-          target_node_id:
-            targetNodeId,
-  
-          relation_type:
-            relationType,
+          source_node_id: sourceNodeId,
+          target_node_id: targetNodeId,
+          relationship_type: relationType,
+          project_id: projectId,
         }),
       }
     );
@@ -103,9 +106,9 @@ export async function updateNode(
     return response.json();
   }
 
-  export async function getRelationships() {
+  export async function getRelationships(projectId: number) {
     const response = await fetch(
-      `${API_URL}/relationships`
+      `${API_URL}/relationships?project_id=${projectId}`
     );
   
     return response.json();
@@ -133,3 +136,50 @@ export async function updateNode(
   
     return response.json();
   }
+
+  export async function getProjects() {
+    const response = await fetch(
+      `${API_URL}/projects`
+    );
+  
+    return response.json();
+  }
+
+  export async function updateNodePosition(
+  nodeId: number,
+  x: number,
+  y: number
+) {
+  const response = await fetch(
+    `${API_URL}/nodes/${nodeId}/position`,
+    {
+      method: "PUT",
+
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+
+      body: JSON.stringify({
+        position_x: Math.round(x),
+        position_y: Math.round(y),
+      }),
+    }
+  );
+
+  return response.json();
+}
+
+
+export async function deleteRelationship(
+  relationshipId: number
+) {
+  const response = await fetch(
+    `${API_URL}/relationships/${relationshipId}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+  return response.json();
+}

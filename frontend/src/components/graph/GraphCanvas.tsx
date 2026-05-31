@@ -15,6 +15,10 @@ import {
   createRelationship
 } from "../../services/api";
 
+import {
+  updateNodePosition
+} from "@/services/api";
+
 const nodeTypes = {
   projectmind: ProjectMindNode,
 };
@@ -32,10 +36,20 @@ export default function GraphCanvas() {
     (state) => state.setSelectedNode
   );
 
+  const selectedProjectId =
+  useGraphStore(
+    (state) =>
+      state.selectedProjectId
+  );
+
   const setSelectedEdge =
   useGraphStore(
     (state) =>
       state.setSelectedEdge
+  );
+
+  const setEdges = useGraphStore(
+    (state) => state.setEdges
   );
 
   const onNodeClick: NodeMouseHandler = (
@@ -44,17 +58,35 @@ export default function GraphCanvas() {
   ) => {
     setSelectedNode(node.id);
   };
+  
 
   const handleConnect =
   async (connection: any) => {
+  
+    const relationship =
+      await createRelationship(
+        Number(connection.source),
+        Number(connection.target),
+        "references",
+        selectedProjectId
+      );
 
-    onConnect(connection);
-
-    await createRelationship(
-      Number(connection.source),
-      Number(connection.target),
-      "references"
-    );
+      console.log("CONNECTION", connection);
+      console.log("DB RELATIONSHIP", relationship);
+  
+    setEdges([
+      ...edges,
+      {
+        id: String(relationship.id),
+        source: String(
+          relationship.source_node_id
+        ),
+        target: String(
+          relationship.target_node_id
+        ),
+        label: relationship.relation_type,
+      },
+    ]);
   };
 
   return (
@@ -69,8 +101,21 @@ export default function GraphCanvas() {
           setSelectedEdge(edge.id);
         }}
         onEdgesChange={onEdgesChange}
-        onConnect={handleConnect}
+        onConnect={handleConnect
+          
+        }
         fitView
+        onNodeDragStop={
+          async (_, node) => {
+        
+            await updateNodePosition(
+              Number(node.id),
+              node.position.x,
+              node.position.y
+            );
+        
+          }
+        }
       >
         <Background />
         <Controls />
