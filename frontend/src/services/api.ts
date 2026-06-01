@@ -278,3 +278,30 @@ export async function getProjectContext(
 
   return response.json();
 }
+
+
+export async function askProjectAI(
+  question: string,
+  context: any
+) {
+
+  const response =
+    await fetch(
+      `${API_URL}/ai/project-chat`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          question,
+          context,
+        }),
+      }
+    );
+
+  return response.json();
+}

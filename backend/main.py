@@ -22,7 +22,7 @@ from schemas.relationship import (
     RelationshipUpdate
 )
 
-from schemas.ai import AIRequest
+from schemas.ai import (AIRequest, ProjectAIRequest)
 
 from schemas.project import ProjectCreate
 
@@ -616,3 +616,46 @@ def get_project_context(
 
     finally:
         db.close()
+
+
+@app.post("/ai/project-chat")
+def project_chat(
+    data: ProjectAIRequest
+):  
+    
+    print("PROJECT CHAT DATA")
+    print(data)
+    print("CONTEXT")
+    print(data.context)
+
+    nodes = data.context.get(
+        "nodes",
+        []
+    )
+
+    relationships = data.context.get(
+        "relationships",
+        []
+    )
+
+    answer = (
+        f"Project contains "
+        f"{len(nodes)} nodes and "
+        f"{len(relationships)} "
+        f"relationships.\n\n"
+    )
+
+    answer += (
+        "Nodes:\n"
+    )
+
+    for node in nodes:
+
+        answer += (
+            f"- "
+            f"{node['title']}\n"
+        )
+
+    return {
+        "answer": answer
+    }

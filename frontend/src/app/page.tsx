@@ -23,6 +23,9 @@ import ProjectSelector from "@/components/graph/ProjectSelector";
 import ProjectDashboard
 from "@/components/graph/ProjectDashboard";
 
+import ProjectChat
+from "@/components/project/ProjectChat";
+
 export default function Home() {
 
   const clearGraph = useGraphStore(
@@ -211,6 +214,16 @@ export default function Home() {
         <ProjectDashboard
           projectId={selectedProjectId}
         />
+
+{
+  selectedProjectId && (
+    <ProjectChat
+      projectId={
+        selectedProjectId
+      }
+    />
+  )
+}
   
       </div>
   
