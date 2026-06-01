@@ -214,8 +214,11 @@ export default function Home() {
         <ProjectDashboard
           projectId={selectedProjectId}
         />
+        
+  
+      </div>
 
-{
+      {
   selectedProjectId && (
     <ProjectChat
       projectId={
@@ -224,8 +227,6 @@ export default function Home() {
     />
   )
 }
-  
-      </div>
   
       {/* Graph Area */}
       <div
