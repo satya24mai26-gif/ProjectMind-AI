@@ -266,3 +266,15 @@ export async function chatWithNode(
 
   return response.json();
 }
+
+export async function getProjectContext(
+  projectId: number
+) {
+
+  const response =
+    await fetch(
+      `${API_URL}/projects/${projectId}/context`
+    );
+
+  return response.json();
+}

@@ -489,11 +489,19 @@ def ai_chat(data: AIRequest):
 
     context = data.context
 
-    node = context.get("node", {})
+    node = context.get(
+        "node",
+        {}
+    )
 
     title = node.get(
         "title",
         "Unknown"
+    )
+
+    description = node.get(
+        "description",
+        ""
     )
 
     node_type = node.get(
@@ -511,20 +519,100 @@ def ai_chat(data: AIRequest):
         []
     )
 
-    answer = f"""
-Node Title:
-{title}
+    answer = (
+        f"This is a "
+        f"{node_type} node "
+        f'named "{title}".\n\n'
+    )
 
-Node Type:
-{node_type}
+    if description:
+        answer += (
+            f"Description:\n"
+            f"{description}\n\n"
+        )
 
-Outgoing Relations:
-{len(outgoing)}
+    if outgoing:
 
-Incoming Relations:
-{len(incoming)}
-"""
+        answer += (
+            "Outgoing Relations:\n"
+        )
+
+        for relation in outgoing:
+
+            answer += (
+                f"• "
+                f"{relation['type']} "
+                f"→ "
+                f"{relation['target']}\n"
+            )
+
+        answer += "\n"
+
+    if incoming:
+
+        answer += (
+            "Incoming Relations:\n"
+        )
+
+        for relation in incoming:
+
+            answer += (
+                f"• "
+                f"{relation['type']} "
+                f"← "
+                f"{relation['source']}\n"
+            )
 
     return {
         "answer": answer
     }
+
+@app.get("/projects/{project_id}/context")
+def get_project_context(
+    project_id: int
+):
+
+    db = SessionLocal()
+
+    try:
+
+        nodes = (
+            db.query(Node)
+            .filter(
+                Node.project_id ==
+                project_id
+            )
+            .all()
+        )
+
+        relationships = (
+            db.query(Relationship)
+            .filter(
+                Relationship.project_id ==
+                project_id
+            )
+            .all()
+        )
+
+        return {
+            "nodes": [
+                {
+                    "title": n.title,
+                    "type": n.node_type,
+                    "description":
+                    n.description
+                }
+                for n in nodes
+            ],
+
+            "relationships": [
+                {
+                    "type":
+                    r.relation_type
+                }
+                for r in relationships
+            ]
+        }
+
+    finally:
+        db.close()
