@@ -659,3 +659,66 @@ def project_chat(
     return {
         "answer": answer
     }
+
+@app.get(
+    "/projects/{project_id}/summary"
+)
+def project_summary(
+    project_id: int
+):
+
+    db = SessionLocal()
+
+    try:
+
+        nodes = (
+            db.query(Node)
+            .filter(
+                Node.project_id ==
+                project_id
+            )
+            .all()
+        )
+
+        relationships = (
+            db.query(Relationship)
+            .filter(
+                Relationship.project_id ==
+                project_id
+            )
+            .all()
+        )
+
+        titles = [
+            n.title
+            for n in nodes
+        ]
+
+        relation_types = [
+            r.relation_type
+            for r in relationships
+        ]
+
+        summary = f"""
+Project Summary
+
+Nodes:
+{len(nodes)}
+
+Relationships:
+{len(relationships)}
+
+Concepts:
+{", ".join(titles)}
+
+Relationship Types:
+{", ".join(relation_types)}
+"""
+
+        return {
+            "summary":
+            summary
+        }
+
+    finally:
+        db.close()
