@@ -10,6 +10,10 @@ import {
     askGraphAI,
   } from "../../services/graphAiService";
 
+  import {
+    chatWithNode
+  } from "@/services/api";
+
 export default function NodeChat() {
   const [message, setMessage] = useState("");
 

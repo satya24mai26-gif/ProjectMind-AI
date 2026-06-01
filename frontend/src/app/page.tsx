@@ -20,6 +20,9 @@ import { useEffect } from "react";
 
 import ProjectSelector from "@/components/graph/ProjectSelector";
 
+import ProjectDashboard
+from "@/components/graph/ProjectDashboard";
+
 export default function Home() {
 
   const clearGraph = useGraphStore(
@@ -126,9 +129,15 @@ export default function Home() {
   
   const handleCreateNode =
   async () => {
+    const title =
+    prompt("Node Title");
+  
+    if (!title) {
+       return;
+    }
 
     await createNode(
-      `Node ${Date.now()}`,
+      title,
       selectedProjectId
     );
 
@@ -142,29 +151,82 @@ export default function Home() {
   
 
   return (
-    <main className="w-screen h-screen relative">
-      
-      <div className="absolute top-4 left-4 z-10 flex gap-2">
-      <ProjectSelector />
-        <button
-          onClick={handleCreateNode}
-          className="bg-black text-white px-4 py-2 rounded"
+    <main className="w-screen h-screen flex flex-col bg-gray-100">
+  
+      {/* Top Toolbar */}
+      <div
+        className="
+        flex
+        items-center
+        justify-between
+        px-4
+        py-3
+        bg-white
+        border-b
+        shadow-sm
+        z-20
+        "
+      >
+  
+        {/* Left Side */}
+        <div
+          className="
+          flex
+          items-center
+          gap-3
+          "
         >
-          Add Node
-        </button>
-
-        <button
-          onClick={clearGraph}
-          className="bg-red-500 text-white px-4 py-2 rounded"
-        >
-          Clear
-        </button>
+          <ProjectSelector />
+  
+          <button
+            onClick={handleCreateNode}
+            className="
+            bg-black
+            text-white
+            px-4
+            py-2
+            rounded
+            hover:bg-gray-800
+            "
+          >
+            Add Node
+          </button>
+  
+          <button
+            onClick={clearGraph}
+            className="
+            bg-red-500
+            text-white
+            px-4
+            py-2
+            rounded
+            hover:bg-red-600
+            "
+          >
+            Clear
+          </button>
+        </div>
+  
+        {/* Right Side */}
+        <ProjectDashboard
+          projectId={selectedProjectId}
+        />
+  
       </div>
-
-      <GraphCanvas />
-      <NodeChat />
-      <EdgeInspector />
-      <NodeInspector />
+  
+      {/* Graph Area */}
+      <div
+        className="
+        flex-1
+        relative
+        "
+      >
+        <GraphCanvas />
+        <NodeChat />
+        <EdgeInspector />
+        <NodeInspector />
+      </div>
+  
     </main>
   );
 }

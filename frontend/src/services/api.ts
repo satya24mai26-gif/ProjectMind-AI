@@ -183,3 +183,86 @@ export async function deleteRelationship(
 
   return response.json();
 }
+
+export async function deleteProject(
+  projectId: number
+) {
+  const response = await fetch(
+    `${API_URL}/projects/${projectId}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+  return response.json();
+}
+
+export async function createProject(
+  name: string,
+  description: string
+) {
+  const response = await fetch(
+    `${API_URL}/projects`,
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+
+      body: JSON.stringify({
+        name,
+        description,
+      }),
+    }
+  );
+
+  return response.json();
+}
+
+export async function getProjectStats(
+  projectId: number
+) {
+  const response = await fetch(
+    `${API_URL}/projects/${projectId}/stats`
+  );
+
+  return response.json();
+}
+
+export async function getContext(
+  nodeId: number
+) {
+  const response = await fetch(
+    `${API_URL}/context/${nodeId}`
+  );
+
+  return response.json();
+}
+
+export async function chatWithNode(
+  nodeId: number,
+  message: string
+) {
+
+  const response =
+    await fetch(
+      `${API_URL}/ai/chat`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          node_id: nodeId,
+          message,
+        }),
+      }
+    );
+
+  return response.json();
+}

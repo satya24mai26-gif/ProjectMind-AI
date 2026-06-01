@@ -351,3 +351,180 @@ def delete_relationship(
 
     finally:
         db.close()
+
+@app.delete("/projects/{project_id}")
+def delete_project(project_id: int):
+
+    db = SessionLocal()
+
+    try:
+
+        db.query(Relationship).filter(
+            Relationship.project_id == project_id
+        ).delete(
+            synchronize_session=False
+        )
+
+        db.query(Node).filter(
+            Node.project_id == project_id
+        ).delete(
+            synchronize_session=False
+        )
+
+        project = (
+            db.query(Project)
+            .filter(
+                Project.id == project_id
+            )
+            .first()
+        )
+
+        if project:
+            db.delete(project)
+
+        db.commit()
+
+        return {
+            "success": True
+        }
+
+    finally:
+        db.close()
+
+@app.get("/projects/{project_id}/stats")
+def get_project_stats(
+    project_id: int
+):
+    db = SessionLocal()
+
+    try:
+
+        node_count = (
+            db.query(Node)
+            .filter(
+                Node.project_id ==
+                project_id
+            )
+            .count()
+        )
+
+        relationship_count = (
+            db.query(Relationship)
+            .filter(
+                Relationship.project_id ==
+                project_id
+            )
+            .count()
+        )
+
+        return {
+            "nodes": node_count,
+            "relationships":
+                relationship_count,
+        }
+
+    finally:
+        db.close()   
+
+@app.get("/context/{node_id}")
+def build_context(node_id: int):
+
+    db = SessionLocal()
+
+    try:
+
+        node = (
+            db.query(Node)
+            .filter(Node.id == node_id)
+            .first()
+        )
+
+        if not node:
+            return {
+                "context": "Node not found"
+            }
+
+        relationships = (
+            db.query(Relationship)
+            .filter(
+                (Relationship.source_node_id == node_id)
+                |
+                (Relationship.target_node_id == node_id)
+            )
+            .all()
+        )
+
+        context = f"""
+NODE:
+{node.title}
+
+TYPE:
+{node.node_type}
+
+DESCRIPTION:
+{node.description}
+
+NOTES:
+{node.notes}
+
+RELATIONSHIPS:
+"""
+
+        for relationship in relationships:
+
+            context += (
+                f"\n"
+                f"{relationship.relation_type}"
+            )
+
+        return {
+            "context": context
+        }
+
+    finally:
+        db.close()
+
+@app.post("/ai/chat")
+def ai_chat(data: AIRequest):
+
+    context = data.context
+
+    node = context.get("node", {})
+
+    title = node.get(
+        "title",
+        "Unknown"
+    )
+
+    node_type = node.get(
+        "type",
+        "Unknown"
+    )
+
+    outgoing = context.get(
+        "outgoingRelations",
+        []
+    )
+
+    incoming = context.get(
+        "incomingRelations",
+        []
+    )
+
+    answer = f"""
+Node Title:
+{title}
+
+Node Type:
+{node_type}
+
+Outgoing Relations:
+{len(outgoing)}
+
+Incoming Relations:
+{len(incoming)}
+"""
+
+    return {
+        "answer": answer
+    }

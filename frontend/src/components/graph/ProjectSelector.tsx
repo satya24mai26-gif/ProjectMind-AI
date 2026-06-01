@@ -4,11 +4,14 @@ import { useEffect, useState } from "react";
 
 import {
   getProjects,
-} from "../../services/api";
+  deleteProject,
+  createProject
+} from "@/services/api";
 
 import {
   useGraphStore,
 } from "../../store/graphStore";
+
 
 export default function ProjectSelector() {
 
@@ -42,30 +45,78 @@ export default function ProjectSelector() {
   }, []);
 
   return (
-    <select
-      value={selectedProjectId}
-      onChange={(e) =>
-        setSelectedProjectId(
-          Number(e.target.value)
-        )
-      }
-      className="
-        border
-        rounded
-        px-3
-        py-2
-      "
-    >
-      {projects.map(
-        (project: any) => (
-          <option
-            key={project.id}
-            value={project.id}
-          >
-            {project.name}
-          </option>
-        )
-      )}
-    </select>
+    <div className="flex flex-col gap-2">
+
+<button
+  onClick={async () => {
+
+    const name =
+      prompt("Project Name");
+
+    if (!name) return;
+
+    await createProject(
+      name,
+      ""
+    );
+
+    window.location.reload();
+  }}
+>
+  New Project
+</button>
+      <select
+        value={selectedProjectId}
+        onChange={(e) =>
+          setSelectedProjectId(
+            Number(e.target.value)
+          )
+        }
+        className="
+          border
+          rounded
+          px-3
+          py-2
+        "
+      >
+        {projects.map(
+          (project: any) => (
+            <option
+              key={project.id}
+              value={project.id}
+            >
+              {project.name}
+            </option>
+          )
+        )}
+      </select>
+  
+      <button
+        className="bg-red-500 text-white px-3 py-2 rounded"
+        onClick={async () => {
+  
+          if (!selectedProjectId) {
+            return;
+          }
+  
+          const confirmed =
+            confirm(
+              "Delete project and all nodes?"
+            );
+  
+          if (!confirmed) {
+            return;
+          }
+  
+          await deleteProject(
+            selectedProjectId
+          );
+  
+          window.location.reload();
+        }}
+      >
+        Delete Project
+      </button>
+    </div>
   );
 }

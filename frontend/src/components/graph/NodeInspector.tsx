@@ -9,14 +9,26 @@ import {
 } from "../../services/api";
 
 import {
-  deleteNode
-} from "../../services/api";
+  deleteNode, getContext
+} from "@/services/api";
 
 import {
   buildContext,
 } from "../../services/contextBuilder";
 
 export default function NodeInspector() {
+
+  const setNodes =
+  useGraphStore(
+    (state) => state.setNodes
+  );
+
+const setEdges =
+  useGraphStore(
+    (state) => state.setEdges
+  );
+
+
   const nodes = useGraphStore((state) => state.nodes);
 
   const selectedNodeId = useGraphStore(
@@ -90,7 +102,7 @@ export default function NodeInspector() {
         nodeType: e.target.value,
       })
     }
-    className="w-full border rounded px-3 py-2"
+    className="w-full border rounded px-5 py-2"
   >
     <option value="research">
       Research
@@ -197,7 +209,22 @@ export default function NodeInspector() {
       Number(selectedNode.id)
     );
 
-    window.location.reload();
+    setNodes(
+      nodes.filter(
+        (node) =>
+          node.id !== selectedNode.id
+      )
+    );
+    
+    setEdges(
+      edges.filter(
+        (edge) =>
+          edge.source !==
+            selectedNode.id &&
+          edge.target !==
+            selectedNode.id
+      )
+    );
 
   }}
   className="bg-red-500 text-white px-4 py-2 rounded ml-2"
@@ -206,12 +233,17 @@ export default function NodeInspector() {
 </button>
 
 <button
-  onClick={() => {
+  onClick={async () => {
 
-    console.log(
-      context
+    const result =
+      await getContext(
+        Number(selectedNode.id)
+      );
+  
+    alert(
+      result.context
     );
-
+  
   }}
   className="
     bg-blue-500

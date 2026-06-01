@@ -36,7 +36,7 @@ export default function EdgeInspector() {
   
 
   return (
-    <div className="absolute top-16 left-0 w-[280px] bg-white border-r p-4 z-20">
+    <div className="absolute top-28 left-0 w-[280px] bg-white border-r p-4 z-20">
       <h2 className="font-bold mb-4">Edge Inspector</h2>
 
       <select
