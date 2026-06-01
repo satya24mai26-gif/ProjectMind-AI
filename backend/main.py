@@ -722,3 +722,93 @@ Relationship Types:
 
     finally:
         db.close()
+
+@app.get(
+    "/projects/{project_id}/analytics"
+)
+def project_analytics(
+    project_id: int
+):
+
+    db = SessionLocal()
+
+    try:
+
+        nodes = (
+            db.query(Node)
+            .filter(
+                Node.project_id ==
+                project_id
+            )
+            .all()
+        )
+
+        relationships = (
+            db.query(Relationship)
+            .filter(
+                Relationship.project_id ==
+                project_id
+            )
+            .all()
+        )
+
+        counts = {}
+
+        for node in nodes:
+
+            counts[node.id] = 0
+
+        for relationship in relationships:
+
+            counts[
+                relationship.source_node_id
+            ] += 1
+
+            counts[
+                relationship.target_node_id
+            ] += 1
+
+        most_connected = None
+
+        if counts:
+
+            best_id = max(
+                counts,
+                key=counts.get
+            )
+
+            most_connected = next(
+                (
+                    n.title
+                    for n in nodes
+                    if n.id == best_id
+                ),
+                None
+            )
+
+        isolated = []
+
+        for node in nodes:
+
+            if counts[node.id] == 0:
+
+                isolated.append(
+                    node.title
+                )
+
+        return {
+            "node_count":
+                len(nodes),
+
+            "relationship_count":
+                len(relationships),
+
+            "most_connected":
+                most_connected,
+
+            "isolated_nodes":
+                isolated,
+        }
+
+    finally:
+        db.close()
