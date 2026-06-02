@@ -305,3 +305,15 @@ export async function askProjectAI(
 
   return response.json();
 }
+
+export async function getRelationshipSuggestions(
+  nodeId: number
+) {
+
+  const response =
+    await fetch(
+      `${API_URL}/nodes/${nodeId}/relationship-suggestions`
+    );
+
+  return response.json();
+}

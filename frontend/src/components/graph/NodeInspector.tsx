@@ -16,6 +16,22 @@ import {
   buildContext,
 } from "../../services/contextBuilder";
 
+import {
+  getRelationshipSuggestions
+} from "@/services/api";
+
+import { useState } from "react";
+
+import {
+  createRelationship
+} from "../../services/api";
+
+import {
+  createNode,
+  getNodes,
+  getRelationships
+} from "@/services/api";
+
 export default function NodeInspector() {
 
   const setNodes =
@@ -28,12 +44,111 @@ const setEdges =
     (state) => state.setEdges
   );
 
+  const [
+    suggestions,
+    setSuggestions
+  ] = useState("");
+
+  const [
+    relationshipSuggestions,
+    setRelationshipSuggestions
+  ] = useState<any[]>([]);
 
   const nodes = useGraphStore((state) => state.nodes);
+
+  const selectedProjectId =
+  useGraphStore(
+    (state) =>
+      state.selectedProjectId
+  );
+
 
   const selectedNodeId = useGraphStore(
     (state) => state.selectedNodeId
   );
+
+
+   const loadGraph = async () => {
+    const dbNodes = await getNodes(selectedProjectId);
+  
+    const dbRelationships = await getRelationships(selectedProjectId);
+    
+    const flowNodes = dbNodes.map(
+      (node: any, index: number) => ({
+        id: String(node.id),
+  
+        position: {
+          x: isNaN(Number(node.position_x))
+            ? 100
+            : Number(node.position_x),
+        
+          y: isNaN(Number(node.position_y))
+            ? 100
+            : Number(node.position_y),
+        },
+  
+        type: "projectmind",
+  
+        data: {
+          title: node.title,
+          description:
+            node.description,
+          nodeType:
+            node.node_type,
+          notes: node.notes,
+          tags: [],
+          messages: [],
+        },
+      })
+    );
+  
+    const validNodeIds =
+    new Set(
+      flowNodes.map(
+        (node: any) => node.id
+      )
+    );
+  
+    const safeRelationships =
+    Array.isArray(
+      dbRelationships
+    )
+      ? dbRelationships
+      : [];
+  
+    const flowEdges =
+    safeRelationships.filter(
+      (relationship: any) =>
+        validNodeIds.has(
+          String(
+            relationship.source_node_id
+          )
+        ) &&
+        validNodeIds.has(
+          String(
+            relationship.target_node_id
+          )
+        )
+    )
+    .map(
+      (relationship: any) => ({
+        id: String(relationship.id),
+        source: String(
+          relationship.source_node_id
+        ),
+        target: String(
+          relationship.target_node_id
+        ),
+        label: relationship.relation_type,
+      })
+    );
+  
+    
+    
+      setNodes(flowNodes);
+      setEdges(flowEdges);
+    };
+
 
   const updateNode = useGraphStore(
     (state) => state.updateNode
@@ -256,6 +371,124 @@ const setEdges =
 >
   Show Context
 </button>
+
+<button
+  onClick={async () => {
+
+    const result =
+      await getRelationshipSuggestions(
+        Number(selectedNode.id)
+      );
+
+      setRelationshipSuggestions(
+        JSON.parse(
+          result.suggestions
+        )
+      );
+  }}
+  className="
+    bg-purple-600
+    text-white
+    px-4
+    py-2
+    rounded
+    mt-2
+    w-full
+  "
+>
+  Generate AI Relationships
+</button>
+
+{suggestions && (
+  <div
+    className="
+      mt-3
+      border
+      rounded
+      p-3
+      text-sm
+      whitespace-pre-wrap
+    "
+  >
+    {suggestions}
+  </div>
+
+  
+)}
+
+
+{
+  relationshipSuggestions.map(
+    (
+      suggestion,
+      index
+    ) => (
+      <div
+        key={index}
+        className="
+          border
+          rounded
+          p-2
+          mt-2
+        "
+      >
+        <div>
+          {suggestion.source}
+          {" -> "}
+          {suggestion.relationship}
+          {" -> "}
+          {suggestion.target}
+        </div>
+
+        <button
+          className="
+            bg-green-600
+            text-white
+            px-3
+            py-1
+            rounded
+            mt-2
+          "
+          onClick={async () => {
+
+            const sourceNode =
+              nodes.find(
+                (n) =>
+                  n.data.title ===
+                  suggestion.source
+              );
+          
+            const targetNode =
+              nodes.find(
+                (n) =>
+                  n.data.title ===
+                  suggestion.target
+              );
+          
+            if (
+              !sourceNode ||
+              !targetNode
+            ) {
+              return;
+            }
+          
+            await createRelationship(
+              Number(sourceNode.id),
+              Number(targetNode.id),
+              suggestion.relationship,
+              selectedProjectId
+            );
+          
+            await loadGraph();
+          }}
+
+        >
+          Accept
+        </button>
+      </div>
+    )
+  )
+}
         </div>
 
       </div>

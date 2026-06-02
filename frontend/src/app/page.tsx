@@ -50,10 +50,7 @@ export default function Home() {
   const dbNodes = await getNodes(selectedProjectId);
 
   const dbRelationships = await getRelationships(selectedProjectId);
-  console.log(
-    "Relationships:",
-    dbRelationships
-  );
+  
   const flowNodes = dbNodes.map(
     (node: any, index: number) => ({
       id: String(node.id),

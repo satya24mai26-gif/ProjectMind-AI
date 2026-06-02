@@ -785,3 +785,144 @@ Provide useful project improvement suggestions.
 
     finally:
         db.close()
+
+@app.get(
+    "/nodes/{node_id}/suggestions"
+)
+def node_suggestions(
+    node_id: int
+):
+
+    db = SessionLocal()
+
+    try:
+
+        node = (
+            db.query(Node)
+            .filter(
+                Node.id == node_id
+            )
+            .first()
+        )
+
+        if not node:
+            return {
+                "error":
+                "Node not found"
+            }
+
+        prompt = f"""
+You are ProjectMind AI.
+
+Node Title:
+{node.title}
+
+Description:
+{node.description}
+
+Domain:
+{node.domain}
+
+Keywords:
+{node.keywords}
+
+Node Type:
+{node.node_type}
+
+Suggest useful graph relationships
+and related nodes.
+
+Keep response under 150 words.
+"""
+
+        suggestions = ask_ollama(
+            prompt
+        )
+
+        return {
+            "suggestions":
+            suggestions
+        }
+
+    finally:
+        db.close()
+
+@app.get(
+    "/nodes/{node_id}/relationship-suggestions"
+)
+def relationship_suggestions(
+    node_id: int
+):
+
+    db = SessionLocal()
+
+    try:
+
+        node = (
+            db.query(Node)
+            .filter(
+                Node.id == node_id
+            )
+            .first()
+        )
+
+        if not node:
+            return {
+                "error":
+                "Node not found"
+            }
+
+        all_nodes = (
+            db.query(Node)
+            .filter(
+                Node.project_id ==
+                node.project_id
+            )
+            .all()
+        )
+
+        other_nodes = [
+            {
+                "id": n.id,
+                "title": n.title,
+                "description": n.description
+            }
+            for n in all_nodes
+            if n.id != node.id
+        ]
+
+        prompt = f"""
+You are a knowledge graph expert.
+
+Current Node:
+{node.title}
+
+Available Nodes:
+{other_nodes}
+
+Return ONLY JSON.
+
+Example:
+
+[
+  {{
+    "source": "Face Recognition",
+    "relationship": "uses",
+    "target": "FAISS"
+  }}
+]
+
+Maximum 5 suggestions.
+"""
+
+        result = ask_ollama(
+            prompt
+        )
+
+        return {
+            "suggestions":
+            result
+        }
+
+    finally:
+        db.close()
