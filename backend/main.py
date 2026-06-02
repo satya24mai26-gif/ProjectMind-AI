@@ -550,40 +550,21 @@ def get_project_context(
 @app.post("/ai/project-chat")
 def project_chat(
     data: ProjectAIRequest
-):  
-    
-    print("PROJECT CHAT DATA")
-    print(data)
-    print("CONTEXT")
-    print(data.context)
+):
 
-    nodes = data.context.get(
-        "nodes",
-        []
-    )
+    prompt = f"""
+You are ProjectMind AI.
 
-    relationships = data.context.get(
-        "relationships",
-        []
-    )
+Question:
+{data.question}
 
-    answer = (
-        f"Project contains "
-        f"{len(nodes)} nodes and "
-        f"{len(relationships)} "
-        f"relationships.\n\n"
-    )
+Project Context:
+{data.context}
 
-    answer += (
-        "Nodes:\n"
-    )
+Answer using the project context.
+"""
 
-    for node in nodes:
-
-        answer += (
-            f"- "
-            f"{node['title']}\n"
-        )
+    answer = ask_ollama(prompt)
 
     return {
         "answer": answer
@@ -628,21 +609,27 @@ def project_summary(
             for r in relationships
         ]
 
-        summary = f"""
-Project Summary
+        prompt = f"""
+You are ProjectMind AI.
+
+Analyze this project.
 
 Nodes:
-{len(nodes)}
-
-Relationships:
-{len(relationships)}
-
-Concepts:
-{", ".join(titles)}
+{titles}
 
 Relationship Types:
-{", ".join(relation_types)}
+{relation_types}
+
+Node Count:
+{len(nodes)}
+
+Relationship Count:
+{len(relationships)}
+
+Write a concise project summary.
 """
+
+        summary = ask_ollama(prompt)
 
         return {
             "summary":
@@ -737,6 +724,63 @@ def project_analytics(
 
             "isolated_nodes":
                 isolated,
+        }
+
+    finally:
+        db.close()
+
+
+@app.get(
+    "/projects/{project_id}/suggestions"
+)
+def project_suggestions(
+    project_id: int
+):
+
+    db = SessionLocal()
+
+    try:
+
+        nodes = (
+            db.query(Node)
+            .filter(
+                Node.project_id ==
+                project_id
+            )
+            .all()
+        )
+
+        relationships = (
+            db.query(Relationship)
+            .filter(
+                Relationship.project_id ==
+                project_id
+            )
+            .all()
+        )
+
+        prompt = f"""
+You are ProjectMind AI.
+
+Nodes:
+{[n.title for n in nodes]}
+
+Relationships:
+{[r.relation_type for r in relationships]}
+
+Provide useful project improvement suggestions.
+"""     
+        
+        print("NODES:", [n.title for n in nodes])
+        print("RELATIONSHIPS:", [r.relation_type for r in relationships])
+
+        suggestions = ask_ollama(
+            prompt
+        )
+
+        return {
+            "suggestions":
+            suggestions
         }
 
     finally:

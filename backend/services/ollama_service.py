@@ -9,9 +9,12 @@ def ask_ollama(prompt: str):
         json={
             "model": "qwen3:8b",
             "prompt": prompt,
+            "options": {
+            "temperature": 0.3
+            },
             "stream": False,
         },
-        timeout=120
+        timeout=300
     )
 
     data = response.json()
