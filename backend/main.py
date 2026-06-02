@@ -29,6 +29,9 @@ from schemas.project import ProjectCreate
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
+from services.ollama_service import ask_ollama
+
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -277,14 +280,22 @@ def update_relationship(
 @app.post("/ai/chat")
 def ai_chat(data: AIRequest):
 
-    return {
-        "answer": f"""
+    prompt = f"""
+You are ProjectMind AI.
+
 Question:
 {data.question}
 
-Context:
+Project Context:
 {data.context}
+
+Answer the question using the context.
 """
+
+    answer = ask_ollama(prompt)
+
+    return {
+        "answer": answer
     }
 
 @app.put("/nodes/{node_id}/position")
@@ -484,88 +495,6 @@ RELATIONSHIPS:
     finally:
         db.close()
 
-@app.post("/ai/chat")
-def ai_chat(data: AIRequest):
-
-    context = data.context
-
-    node = context.get(
-        "node",
-        {}
-    )
-
-    title = node.get(
-        "title",
-        "Unknown"
-    )
-
-    description = node.get(
-        "description",
-        ""
-    )
-
-    node_type = node.get(
-        "type",
-        "Unknown"
-    )
-
-    outgoing = context.get(
-        "outgoingRelations",
-        []
-    )
-
-    incoming = context.get(
-        "incomingRelations",
-        []
-    )
-
-    answer = (
-        f"This is a "
-        f"{node_type} node "
-        f'named "{title}".\n\n'
-    )
-
-    if description:
-        answer += (
-            f"Description:\n"
-            f"{description}\n\n"
-        )
-
-    if outgoing:
-
-        answer += (
-            "Outgoing Relations:\n"
-        )
-
-        for relation in outgoing:
-
-            answer += (
-                f"• "
-                f"{relation['type']} "
-                f"→ "
-                f"{relation['target']}\n"
-            )
-
-        answer += "\n"
-
-    if incoming:
-
-        answer += (
-            "Incoming Relations:\n"
-        )
-
-        for relation in incoming:
-
-            answer += (
-                f"• "
-                f"{relation['type']} "
-                f"← "
-                f"{relation['source']}\n"
-            )
-
-    return {
-        "answer": answer
-    }
 
 @app.get("/projects/{project_id}/context")
 def get_project_context(
