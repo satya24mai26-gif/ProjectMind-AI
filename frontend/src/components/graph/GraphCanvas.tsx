@@ -71,6 +71,15 @@ export default function GraphCanvas() {
         selectedProjectId
       );
 
+      if (
+        relationship.message
+      ) {
+        alert(
+          relationship.message
+        );
+        return;
+      }
+
       console.log("CONNECTION", connection);
       console.log("DB RELATIONSHIP", relationship);
   

@@ -203,23 +203,55 @@ def delete_node(node_id: int):
 def create_relationship(
     data: RelationshipCreate
 ):
+
     db = SessionLocal()
 
-    relationship = Relationship(
-    source_node_id=data.source_node_id,
-    target_node_id=data.target_node_id,
-    relation_type=data.relationship_type,
-    project_id=data.project_id
-)
-
-    db.add(relationship)
-
-    db.commit()
-
-    db.refresh(relationship)
-
     try:
+
+        existing = (
+            db.query(Relationship)
+            .filter(
+                Relationship.source_node_id
+                == data.source_node_id,
+
+                Relationship.target_node_id
+                == data.target_node_id,
+
+                Relationship.project_id
+                == data.project_id
+            )
+            .first()
+        )
+
+        if existing:
+
+            return {
+                "message":
+                "Relationship already exists"
+            }
+
+        relationship = Relationship(
+            source_node_id=
+            data.source_node_id,
+
+            target_node_id=
+            data.target_node_id,
+
+            relation_type=
+            data.relationship_type,
+
+            project_id=
+            data.project_id
+        )
+
+        db.add(relationship)
+
+        db.commit()
+
+        db.refresh(relationship)
+
         return relationship
+
     finally:
         db.close()
 
@@ -262,6 +294,34 @@ def update_relationship(
             return {
                 "error":
                 "Relationship not found"
+            }
+        
+        existing = (
+            db.query(Relationship)
+            .filter(
+                Relationship.source_node_id
+                == relationship.source_node_id,
+
+                Relationship.target_node_id
+                == relationship.target_node_id,
+
+                Relationship.relation_type
+                == data.relation_type,
+
+                Relationship.project_id
+                == relationship.project_id,
+
+                Relationship.id
+                != relationship_id
+            )
+            .first()
+        )
+
+        if existing:
+
+            return {
+                "message":
+                "Relationship already exists"
             }
 
         relationship.relation_type = (

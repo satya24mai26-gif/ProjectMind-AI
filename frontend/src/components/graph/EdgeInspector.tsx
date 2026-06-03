@@ -46,20 +46,15 @@ export default function EdgeInspector() {
 
           const relationshipId = Number(edge.id);
 
-          console.log(
-            "EDGE ID:",
-            edge.id
-          );
+          console.log("EDGE ID:", edge.id);
 
           await updateRelationship(relationshipId, relationType);
           setEdges(
             edges.map((existingEdge) => {
-              if (
-                existingEdge.id !== edge.id
-              ) {
+              if (existingEdge.id !== edge.id) {
                 return existingEdge;
               }
-          
+
               return {
                 ...existingEdge,
                 label: relationType,
@@ -80,29 +75,29 @@ export default function EdgeInspector() {
         <option value="extends">Extends</option>
 
         <option value="related_to">Related To</option>
+
+        <option value="references">references</option>
+
+        <option value="depends_on">depends_on</option>
+
+        <option value="related_to">related_to</option>
+
+        <option value="contains">contains</option>
+
+        <option value="uses">uses</option>
       </select>
       <button
-  className="mt-4 bg-red-500 text-white px-4 py-2 rounded"
-  onClick={async () => {
+        className="mt-4 bg-red-500 text-white px-4 py-2 rounded"
+        onClick={async () => {
+          const relationshipId = Number(edge.id);
 
-    const relationshipId =
-      Number(edge.id);
+          await deleteRelationship(relationshipId);
 
-    await deleteRelationship(
-      relationshipId
-    );
-
-    setEdges(
-      edges.filter(
-        (existingEdge) =>
-          existingEdge.id !== edge.id
-      )
-    );
-
-  }}
->
-  Delete Relationship
-</button>
+          setEdges(edges.filter((existingEdge) => existingEdge.id !== edge.id));
+        }}
+      >
+        Delete Relationship
+      </button>
     </div>
   );
 }

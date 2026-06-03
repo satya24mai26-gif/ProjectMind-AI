@@ -44,10 +44,6 @@ const setEdges =
     (state) => state.setEdges
   );
 
-  const [
-    suggestions,
-    setSuggestions
-  ] = useState("");
 
   const [
     relationshipSuggestions,
@@ -193,49 +189,35 @@ const setEdges =
 
   return (
     <div className="absolute top-0 right-0 w-[320px] h-full bg-white border-l p-4 z-20 shadow-lg overflow-y-auto">
-
-      <h2 className="text-2xl font-bold mb-6">
-        Node Inspector
-      </h2>
+      <h2 className="text-2xl font-bold mb-6">Node Inspector</h2>
 
       <div className="space-y-6">
-
         <div>
-          <label className="text-sm text-gray-500 block mb-2">
-            Title
-          </label>
+          <label className="text-sm text-gray-500 block mb-2">Title</label>
 
           <div>
-  <label className="text-sm text-gray-500 block mb-2">
-    Node Type
-  </label>
+            <label className="text-sm text-gray-500 block mb-2">
+              Node Type
+            </label>
 
-  <select
-    value={selectedNode.data.nodeType}
-    onChange={(e) =>
-      updateNode(selectedNode.id, {
-        nodeType: e.target.value,
-      })
-    }
-    className="w-full border rounded px-5 py-2"
-  >
-    <option value="research">
-      Research
-    </option>
+            <select
+              value={selectedNode.data.nodeType}
+              onChange={(e) =>
+                updateNode(selectedNode.id, {
+                  nodeType: e.target.value,
+                })
+              }
+              className="w-full border rounded px-5 py-2"
+            >
+              <option value="research">Research</option>
 
-    <option value="task">
-      Task
-    </option>
+              <option value="task">Task</option>
 
-    <option value="code">
-      Code
-    </option>
+              <option value="code">Code</option>
 
-    <option value="memory">
-      Memory
-    </option>
-  </select>
-</div>
+              <option value="memory">Memory</option>
+            </select>
+          </div>
 
           <input
             type="text"
@@ -258,109 +240,77 @@ const setEdges =
         </div>
 
         <div>
-          <label className="text-sm text-gray-500 block mb-2">
-            Tags
-          </label>
+          <label className="text-sm text-gray-500 block mb-2">Tags</label>
 
           <div className="flex gap-2 flex-wrap">
-            {selectedNode.data.tags.map(
-              (tag: string) => (
-                <span
-                  key={tag}
-                  className="bg-gray-200 px-2 py-1 rounded text-xs"
-                >
-                  #{tag}
-                </span>
-              )
-            )}
+            {selectedNode.data.tags.map((tag: string) => (
+              <span key={tag} className="bg-gray-200 px-2 py-1 rounded text-xs">
+                #{tag}
+              </span>
+            ))}
           </div>
 
           <div>
-  <label className="text-sm text-gray-500 block mb-2">
-    Notes
-  </label>
+            <label className="text-sm text-gray-500 block mb-2">Notes</label>
 
-  <textarea
-    value={selectedNode.data.notes || ""}
-    onChange={(e) =>
-      updateNode(selectedNode.id, {
-        notes: e.target.value,
-      })
-    }
-    className="w-full border rounded px-3 py-2 min-h-[200px]"
-  />
-</div>
-<button
-  onClick={async () => {
+            <textarea
+              value={selectedNode.data.notes || ""}
+              onChange={(e) =>
+                updateNode(selectedNode.id, {
+                  notes: e.target.value,
+                })
+              }
+              className="w-full border rounded px-3 py-2 min-h-[200px]"
+            />
+          </div>
 
-    await updateNodeApi(
-      Number(selectedNode.id),
-      {
-        title:
-          selectedNode.data.title,
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={async () => {
+                await updateNodeApi(Number(selectedNode.id), {
+                  title: selectedNode.data.title,
 
-        description:
-          selectedNode.data.description,
+                  description: selectedNode.data.description,
 
-        node_type:
-          selectedNode.data.nodeType,
+                  node_type: selectedNode.data.nodeType,
 
-        notes:
-          selectedNode.data.notes,
-      }
-    );
+                  notes: selectedNode.data.notes,
+                });
 
-    alert("Saved");
-  }}
-  className="bg-black text-white px-4 py-2 rounded"
->
-  Save Node
-</button>
+                alert("Saved");
+              }}
+              className="bg-black text-white px-4 py-2 rounded"
+            >
+              Save Node
+            </button>
 
-<button
-  onClick={async () => {
+            <button
+              onClick={async () => {
+                await deleteNode(Number(selectedNode.id));
 
-    await deleteNode(
-      Number(selectedNode.id)
-    );
+                setNodes(nodes.filter((node) => node.id !== selectedNode.id));
 
-    setNodes(
-      nodes.filter(
-        (node) =>
-          node.id !== selectedNode.id
-      )
-    );
-    
-    setEdges(
-      edges.filter(
-        (edge) =>
-          edge.source !==
-            selectedNode.id &&
-          edge.target !==
-            selectedNode.id
-      )
-    );
+                setEdges(
+                  edges.filter(
+                    (edge) =>
+                      edge.source !== selectedNode.id &&
+                      edge.target !== selectedNode.id
+                  )
+                );
+              }}
+              className="bg-red-500 text-white px-4 py-2 rounded ml-2"
+            >
+              Delete Node
+            </button>
+          </div>
 
-  }}
-  className="bg-red-500 text-white px-4 py-2 rounded ml-2"
->
-  Delete Node
-</button>
+          <button
+            onClick={async () => {
+              const result = await getContext(Number(selectedNode.id));
 
-<button
-  onClick={async () => {
-
-    const result =
-      await getContext(
-        Number(selectedNode.id)
-      );
-  
-    alert(
-      result.context
-    );
-  
-  }}
-  className="
+              alert(result.context);
+            }}
+            className="
     bg-blue-500
     text-white
     px-4
@@ -368,25 +318,20 @@ const setEdges =
     rounded
     mt-4
   "
->
-  Show Context
-</button>
+          >
+            Show Context
+          </button>
 
-<button
-  onClick={async () => {
+          <button
+            onClick={async () => {
+              const result = await getRelationshipSuggestions(
+                Number(selectedNode.id)
+              );
 
-    const result =
-      await getRelationshipSuggestions(
-        Number(selectedNode.id)
-      );
-
-      setRelationshipSuggestions(
-        JSON.parse(
-          result.suggestions
-        )
-      );
-  }}
-  className="
+              setRelationshipSuggestions(JSON.parse(result.suggestions));
+              console.log(result.suggestions);
+            }}
+            className="
     bg-purple-600
     text-white
     px-4
@@ -395,53 +340,30 @@ const setEdges =
     mt-2
     w-full
   "
->
-  Generate AI Relationships
-</button>
+          >
+            Generate AI Relationships
+          </button>
 
-{suggestions && (
-  <div
-    className="
-      mt-3
-      border
-      rounded
-      p-3
-      text-sm
-      whitespace-pre-wrap
-    "
-  >
-    {suggestions}
-  </div>
-
-  
-)}
-
-
-{
-  relationshipSuggestions.map(
-    (
-      suggestion,
-      index
-    ) => (
-      <div
-        key={index}
-        className="
+          {relationshipSuggestions.map((suggestion, index) => (
+            <div
+              key={index}
+              className="
           border
           rounded
           p-2
           mt-2
         "
-      >
-        <div>
-          {suggestion.source}
-          {" -> "}
-          {suggestion.relationship}
-          {" -> "}
-          {suggestion.target}
-        </div>
+            >
+              <div>
+                {suggestion.source}
+                {" -> "}
+                {suggestion.relationship}
+                {" -> "}
+                {suggestion.target}
+              </div>
 
-        <button
-          className="
+              <button
+                className="
             bg-green-600
             text-white
             px-3
@@ -449,48 +371,36 @@ const setEdges =
             rounded
             mt-2
           "
-          onClick={async () => {
+                onClick={async () => {
+                  const sourceNode = nodes.find(
+                    (n) => n.data.title === suggestion.source
+                  );
 
-            const sourceNode =
-              nodes.find(
-                (n) =>
-                  n.data.title ===
-                  suggestion.source
-              );
-          
-            const targetNode =
-              nodes.find(
-                (n) =>
-                  n.data.title ===
-                  suggestion.target
-              );
-          
-            if (
-              !sourceNode ||
-              !targetNode
-            ) {
-              return;
-            }
-          
-            await createRelationship(
-              Number(sourceNode.id),
-              Number(targetNode.id),
-              suggestion.relationship,
-              selectedProjectId
-            );
-          
-            await loadGraph();
-          }}
+                  const targetNode = nodes.find(
+                    (n) => n.data.title === suggestion.target
+                  );
 
-        >
-          Accept
-        </button>
-      </div>
-    )
-  )
-}
+                  if (!sourceNode || !targetNode) {
+                    return;
+                  }
+
+                  await createRelationship(
+                    Number(sourceNode.id),
+                    Number(targetNode.id),
+                    suggestion.relationship,
+                    selectedProjectId
+                  );
+
+                  await loadGraph();
+
+                  alert("Relationship created");
+                }}
+              >
+                Accept
+              </button>
+            </div>
+          ))}
         </div>
-
       </div>
     </div>
   );
