@@ -10,7 +10,7 @@ export type NodeType =
 export interface ProjectMindNodeData {
     title: string;
     description: string;
-    tags: string[];
+    tags: string;
     nodeType: NodeType;
     notes: string;
     messages: ChatMessage[];

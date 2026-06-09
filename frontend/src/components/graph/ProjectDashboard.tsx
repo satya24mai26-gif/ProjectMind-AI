@@ -9,6 +9,10 @@ import {
   getProjectStats
 } from "@/services/api";
 
+import {
+  useGraphStore
+} from "@/store/graphStore";
+
 export default function ProjectDashboard({
   projectId,
 }: {
@@ -18,13 +22,22 @@ export default function ProjectDashboard({
   const [stats, setStats] =
     useState<any>(null);
 
+  const analyticsRefresh =
+    useGraphStore(
+      (
+        state
+      ) =>
+        state.analyticsRefresh
+    );
+
   useEffect(() => {
 
     getProjectStats(
       projectId
     ).then(setStats);
 
-  }, [projectId]);
+  }, [projectId,
+    analyticsRefresh]);
 
   if (!stats) {
     return null;
@@ -38,16 +51,16 @@ export default function ProjectDashboard({
       rounded
       p-3
       shadow
-      min-w-[220px]
+      min-w-[280px]
       "
     >
       <h3
         className="
         font-bold
-        mb-2
+        mb-3
         "
       >
-        Project Stats
+        Project Analytics
       </h3>
   
       <div>
@@ -58,6 +71,31 @@ export default function ProjectDashboard({
       <div>
         Relationships:
         {stats.relationships}
+      </div>
+  
+      <div>
+        Most Connected:
+        {" "}
+        {stats.most_connected_node ??
+          "N/A"}
+      </div>
+  
+      <div>
+        Connection Count:
+        {" "}
+        {stats.most_connected_count}
+      </div>
+  
+      <div>
+        Orphan Nodes:
+        {" "}
+        {stats.orphan_nodes}
+      </div>
+  
+      <div>
+        Avg Connections:
+        {" "}
+        {stats.average_connections}
       </div>
   
     </div>

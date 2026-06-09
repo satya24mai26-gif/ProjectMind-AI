@@ -47,24 +47,7 @@ export default function ProjectSelector() {
   return (
     <div className="flex flex-col gap-2">
 
-<button
-  onClick={async () => {
 
-    const name =
-      prompt("Project Name");
-
-    if (!name) return;
-
-    await createProject(
-      name,
-      ""
-    );
-
-    window.location.reload();
-  }}
->
-  New Project
-</button>
       <select
         value={selectedProjectId}
         onChange={(e) =>
@@ -90,6 +73,8 @@ export default function ProjectSelector() {
           )
         )}
       </select>
+
+      <div className="flex flex-row gap-2">
   
       <button
         className="bg-red-500 text-white px-3 py-2 rounded"
@@ -117,6 +102,32 @@ export default function ProjectSelector() {
       >
         Delete Project
       </button>
+      <button
+        className="
+        bg-black
+        text-white
+        px-4
+        py-2
+        rounded
+        "
+        onClick={async () => {
+
+          const name =
+            prompt("Project Name");
+
+          if (!name) return;
+
+          await createProject(
+            name,
+            ""
+          );
+
+          window.location.reload();
+        }}
+      >
+        New Project
+      </button>
+      </div>
     </div>
   );
 }

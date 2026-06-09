@@ -1,28 +1,25 @@
 const API_URL = "http://127.0.0.1:8000";
 
 export async function createNode(
-  title: string,
-  projectId: number
+  data: any
 ) {
-  const response = await fetch(
-    `${API_URL}/nodes`,
-    {
-      method: "POST",
 
-      headers: {
-        "Content-Type":
-          "application/json",
-      },
+  const response =
+    await fetch(
+      `${API_URL}/nodes`,
+      {
+        method: "POST",
 
-      body: JSON.stringify({
-        title,
-        description: "",
-        node_type: "research",
-        notes: "",
-        project_id: projectId,
-      }),
-    }
-  );
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify(
+          data
+        ),
+      }
+    );
 
   return response.json();
 }
@@ -46,6 +43,7 @@ export async function updateNode(
       description: string;
       node_type: string;
       notes: string;
+      tags: string;
     }
   ) {
     const response = await fetch(
@@ -281,13 +279,13 @@ export async function getProjectContext(
 
 
 export async function askProjectAI(
-  question: string,
-  context: any
+  projectId: number,
+  question: string
 ) {
 
   const response =
     await fetch(
-      `${API_URL}/ai/project-chat`,
+      `${API_URL}/projects/${projectId}/chat`,
       {
         method: "POST",
 
@@ -298,7 +296,6 @@ export async function askProjectAI(
 
         body: JSON.stringify({
           question,
-          context,
         }),
       }
     );
@@ -316,4 +313,106 @@ export async function getRelationshipSuggestions(
     );
 
   return response.json();
+}
+
+export async function addMissingConcept(
+  projectId: number,
+  title: string
+) {
+
+  const response =
+    await fetch(
+      `${API_URL}/projects/${projectId}/add-concept`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          title,
+        }),
+      }
+    );
+
+  return response.json();
+}
+
+export async function
+getGapAnalysis(
+  projectId: number
+) {
+
+  const response =
+    await fetch(
+      `${API_URL}/projects/${projectId}/gap-analysis`
+    );
+
+  return response.json();
+}
+
+export async function
+getConceptSuggestions(
+  nodeId: number
+) {
+  const response =
+    await fetch(
+      `${API_URL}/nodes/${nodeId}/concept-suggestions`
+    );
+
+  return response.json();
+}
+
+export async function
+getAISettings() {
+
+  const response =
+    await fetch(
+      `${API_URL}/ai-settings`
+    );
+
+  return response.json();
+
+}
+
+export async function
+updateAISettings(
+  provider: string,
+  model: string
+) {
+
+  const response =
+    await fetch(
+      `${API_URL}/ai-settings`,
+      {
+        method: "PUT",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          provider,
+          model,
+        }),
+      }
+    );
+
+  return response.json();
+
+}
+
+export async function
+getAvailableModels() {
+
+  const response =
+    await fetch(
+      `${API_URL}/available-models`
+    );
+
+  return response.json();
+
 }

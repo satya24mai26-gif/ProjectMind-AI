@@ -19,7 +19,7 @@ export default function ProjectMindNode({
   const description =
     data?.description || "No description";
 
-  const tags = data?.tags || [];
+  const tags = data?.tags || "";
 
   const nodeType = data?.nodeType || "research";
 
@@ -28,6 +28,12 @@ export default function ProjectMindNode({
     task: "border-green-500",
     code: "border-purple-500",
     memory: "border-yellow-500",
+    research_question: "border-red-500",
+    concept: "border-orange-500",
+    dataset: "border-lime-500",
+    component: "border-sky-500",
+    algorithm: "border-rose-300",
+    technology: "border-[#D1a5aB]"
   };
 
   const borderColor =
@@ -60,14 +66,27 @@ export default function ProjectMindNode({
       </p>
 
       <div className="flex gap-2 mt-3 flex-wrap">
-        {tags.map((tag) => (
-          <span
-            key={tag}
-            className="text-xs bg-gray-200 px-2 py-1 rounded"
-          >
-            #{tag}
-          </span>
-        ))}
+        {tags.split(",")
+          .filter(
+            (tag: string) =>
+              tag.trim()
+          )
+          .map(
+            (tag: string) => (
+              <span
+                key={tag}
+                className="
+                text-xs
+                bg-gray-200
+                px-2
+                py-1
+                rounded
+                "
+              >
+                #{tag.trim()}
+              </span>
+            )
+          )}
       </div>
 
       <Handle

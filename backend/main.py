@@ -1,18 +1,21 @@
 from fastapi import FastAPI
 
+import json
+
 from database.db import engine
 from database.models import Base
 
 from database.db import SessionLocal
 from database.models import Project
 
-from database.models import Node
+from database.models import (Node, AISettings)
 
 from fastapi.middleware.cors import CORSMiddleware
 
 from schemas.node import (
     NodeCreate,
-    NodePositionUpdate
+    NodePositionUpdate,
+    NodeUpdate
 )
 
 
@@ -22,14 +25,12 @@ from schemas.relationship import (
     RelationshipUpdate
 )
 
-from schemas.ai import (AIRequest, ProjectAIRequest)
+from schemas.ai import (AIRequest, MissingConceptRequest, AISettingsUpdate)
 
 from schemas.project import ProjectCreate
 
-from fastapi import Depends
-from sqlalchemy.orm import Session
-
-from services.ollama_service import ask_ollama
+from services.ollama_service import (ask_ollama, ask_gap_analysis, ask_model, ask_ai)
+#from services.ai_service import ask_ai
 
 
 
@@ -49,6 +50,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+try:
+    db = SessionLocal()
+    settings = (
+        db.query(AISettings)
+        .first()
+    )
+
+
+    if not settings:
+
+        settings = AISettings(
+            provider="ollama",
+            model="qwen3:8b"
+        )
+
+        db.add(settings)
+
+        db.commit()
+    else:
+
+        print(
+            settings.provider,
+            settings.model,
+            settings.id
+        )
+    
+finally:
+    db.close()
 
 @app.get("/")
 def root():
@@ -105,6 +134,7 @@ def create_node(data: NodeCreate):
     description=data.description,
     node_type=data.node_type,
     notes=data.notes,
+    tags=data.tags,
     )
 
     db.add(node)
@@ -132,7 +162,7 @@ def get_nodes(
 @app.put("/nodes/{node_id}")
 def update_node(
     node_id: int,
-    data: NodeCreate
+    data: NodeUpdate
 ):
     db = SessionLocal()
 
@@ -152,6 +182,7 @@ def update_node(
     node.description = data.description
     node.node_type = data.node_type
     node.notes = data.notes
+    node.tags = data.tags
 
     db.commit()
     db.refresh(node)
@@ -470,28 +501,108 @@ def get_project_stats(
 
     try:
 
-        node_count = (
+        nodes = (
             db.query(Node)
             .filter(
                 Node.project_id ==
                 project_id
             )
-            .count()
+            .all()
         )
 
-        relationship_count = (
+        relationships = (
             db.query(Relationship)
             .filter(
                 Relationship.project_id ==
                 project_id
             )
-            .count()
+            .all()
+        )
+
+        node_count = len(nodes)
+
+        relationship_count = len(
+            relationships
+        )
+
+        connection_counts = {}
+
+        for node in nodes:
+
+            connection_counts[
+                node.id
+            ] = 0
+
+        for relationship in relationships:
+
+            connection_counts[
+                relationship.source_node_id
+            ] += 1
+
+            connection_counts[
+                relationship.target_node_id
+            ] += 1
+
+        most_connected_node = None
+
+        most_connected_count = 0
+
+        for node in nodes:
+
+            count = connection_counts[
+                node.id
+            ]
+
+            if (
+                count >
+                most_connected_count
+            ):
+
+                most_connected_count = count
+
+                most_connected_node = (
+                    node.title
+                )
+
+        orphan_nodes = sum(
+            1
+            for count in
+            connection_counts.values()
+            if count == 0
+        )
+
+        average_connections = (
+            round(
+                sum(
+                    connection_counts
+                    .values()
+                )
+                /
+                node_count,
+                2
+            )
+            if node_count > 0
+            else 0
         )
 
         return {
-            "nodes": node_count,
+            "nodes":
+                node_count,
+
             "relationships":
                 relationship_count,
+
+            "most_connected_node":
+                most_connected_node,
+
+            "most_connected_count":
+                most_connected_count,
+
+            "orphan_nodes":
+                orphan_nodes,
+
+            "average_connections":
+                average_connections,
         }
 
     finally:
@@ -526,27 +637,64 @@ def build_context(node_id: int):
         )
 
         context = f"""
-NODE:
-{node.title}
+        NODE:
+        {node.title}
 
-TYPE:
-{node.node_type}
+        TYPE:
+        {node.node_type}
 
-DESCRIPTION:
-{node.description}
+        DESCRIPTION:
+        {node.description}
 
-NOTES:
-{node.notes}
+        NOTES:
+        {node.notes}
 
-RELATIONSHIPS:
-"""
+        OUTGOING RELATIONSHIPS:
+        """
 
         for relationship in relationships:
 
-            context += (
-                f"\n"
-                f"{relationship.relation_type}"
-            )
+            if relationship.source_node_id == node_id:
+
+                target = (
+                    db.query(Node)
+                    .filter(
+                        Node.id ==
+                        relationship.target_node_id
+                    )
+                    .first()
+                )
+
+                if target:
+
+                    context += (
+                        f"\n{node.title}"
+                        f" --{relationship.relation_type}--> "
+                        f"{target.title}"
+                    )
+
+        context += "\n\nINCOMING RELATIONSHIPS:\n"
+
+        for relationship in relationships:
+
+            if relationship.target_node_id == node_id:
+
+                source = (
+                    db.query(Node)
+                    .filter(
+                        Node.id ==
+                        relationship.source_node_id
+                    )
+                    .first()
+                )
+
+                if source:
+
+                    context += (
+                        f"\n{source.title}"
+                        f" --{relationship.relation_type}--> "
+                        f"{node.title}"
+                    )
 
         return {
             "context": context
@@ -583,6 +731,11 @@ def get_project_context(
             .all()
         )
 
+        node_map = {
+            node.id: node.title
+            for node in nodes
+        }
+
         return {
             "nodes": [
                 {
@@ -594,10 +747,20 @@ def get_project_context(
                 for n in nodes
             ],
 
-            "relationships": [
+             "relationships": [
                 {
-                    "type":
-                    r.relation_type
+                    "source":
+                    node_map.get(
+                        r.source_node_id
+                    ),
+
+                    "relationship":
+                    r.relation_type,
+
+                    "target":
+                    node_map.get(
+                        r.target_node_id
+                    )
                 }
                 for r in relationships
             ]
@@ -607,28 +770,84 @@ def get_project_context(
         db.close()
 
 
-@app.post("/ai/project-chat")
+@app.post("/projects/{project_id}/chat")
 def project_chat(
-    data: ProjectAIRequest
+    project_id: int,
+    data: AIRequest
 ):
+    db = SessionLocal()
 
-    prompt = f"""
-You are ProjectMind AI.
+    try:
 
-Question:
-{data.question}
+        nodes = (
+            db.query(Node)
+            .filter(
+                Node.project_id == project_id
+            )
+            .all()
+        )
 
-Project Context:
-{data.context}
+        relationships = (
+            db.query(Relationship)
+            .filter(
+                Relationship.project_id == project_id
+            )
+            .all()
+        )
 
-Answer using the project context.
-"""
+        node_map = {
+            node.id: node.title
+            for node in nodes
+        }
 
-    answer = ask_ollama(prompt)
+        context = "PROJECT KNOWLEDGE GRAPH\n\n"
 
-    return {
-        "answer": answer
-    }
+        for node in nodes:
+
+            context += (
+                f"Node: {node.title}\n"
+                f"Type: {node.node_type}\n"
+                f"Description: {node.description or 'No description'}\n\n"
+                f"Notes: {node.notes or 'No notes'}\n\n"
+            )
+
+        context += "\nRELATIONSHIPS\n"
+
+        for relationship in relationships:
+
+            source = node_map.get(
+                relationship.source_node_id
+            )
+
+            target = node_map.get(
+                relationship.target_node_id
+            )
+
+            context += (
+                f"{source}"
+                f" --{relationship.relation_type}--> "
+                f"{target}\n"
+            )
+
+        prompt = f"""
+                You are ProjectMind AI.
+
+                Question:
+                {data.question}
+
+                Project Context:
+                {context}
+
+                Answer using only the project knowledge graph.
+                """
+
+        answer = ask_ollama(prompt)
+
+        return {
+            "answer": answer
+        }
+    finally:
+        db.close()
 
 @app.get(
     "/projects/{project_id}/summary"
@@ -895,7 +1114,7 @@ and related nodes.
 Keep response under 150 words.
 """
 
-        suggestions = ask_ollama(
+        suggestions = ask_ai(
             prompt
         )
 
@@ -975,7 +1194,7 @@ Example:
 Maximum 5 suggestions.
 """
 
-        result = ask_ollama(
+        result = ask_ai(
             prompt
         )
 
@@ -986,3 +1205,443 @@ Maximum 5 suggestions.
 
     finally:
         db.close()
+
+@app.get(
+    "/projects/{project_id}/gap-analysis"
+)
+def gap_analysis(
+    project_id: int
+):
+
+    db = SessionLocal()
+
+    try:
+
+        nodes = (
+            db.query(Node)
+            .filter(
+                Node.project_id ==
+                project_id
+            )
+            .all()
+        )
+
+        relationships = (
+            db.query(Relationship)
+            .filter(
+                Relationship.project_id ==
+                project_id
+            )
+            .all()
+        )
+
+        node_map = {
+            node.id: node.title
+            for node in nodes
+        }
+
+        context = "PROJECT KNOWLEDGE GRAPH\n\n"
+
+        context += "NODES:\n"
+
+        for node in nodes:
+
+            context += (
+                f"- {node.title}\n"
+            )
+
+        context += "\nRELATIONSHIPS:\n"
+
+        for relationship in relationships:
+
+            source = node_map.get(
+                relationship.source_node_id
+            )
+
+            target = node_map.get(
+                relationship.target_node_id
+            )
+
+            context += (
+                f"{source}"
+                f" --{relationship.relation_type}--> "
+                f"{target}\n"
+            )
+
+        prompt = """
+        Return ONLY JSON.
+
+        dont take more time give fast with in 3 seconds
+
+        JSON Format:
+
+        {
+            "missing_concepts": [
+            "Feature Vectors",
+            "Identity Persistence"
+        ],
+
+        "missing_relationships": [
+            {
+                "source": "Face Recognition",
+                "target": "Feature Vectors",
+                "type": "uses"
+            }
+        ],
+
+        "weak_areas": [
+            "Tracking"
+        ]
+        }
+        """
+        return {
+            "missing_concepts": [
+                "Feature Vectors",
+                "Identity Persistence"
+            ],
+
+            "missing_relationships": [
+                {
+                    "source": "Face Recognition",
+                    "target": "Feature Vectors",
+                    "type": "uses"
+                }
+            ],
+
+            "weak_areas": [
+                "Tracking"
+            ]
+        }
+
+        result = ask_gap_analysis(prompt)
+
+        print("vs", result)
+
+        import json
+
+        try:
+
+            if not result:
+
+                return {
+                    "missing_concepts": [],
+                    "missing_relationships": [],
+                    "weak_areas": []
+                }
+
+            parsed = json.loads(
+                result
+            )
+
+            return parsed
+
+        except Exception as e:
+
+            print(
+                "JSON Parse Error:",
+                e
+            )
+
+            print(
+                "Raw Response:",
+                result
+            )
+
+            return {
+                "raw": result
+            }
+
+    finally:
+        db.close()
+
+@app.post(
+    "/projects/{project_id}/add-concept"
+)
+def add_missing_concept(
+    project_id: int,
+    data: MissingConceptRequest
+):
+
+    db = SessionLocal()
+
+    try:
+
+        existing = (
+            db.query(Node)
+            .filter(
+                Node.project_id ==
+                project_id,
+
+                Node.title ==
+                data.title
+            )
+            .first()
+        )
+
+        if existing:
+
+            return {
+                "message":
+                "Concept already exists"
+            }
+
+        node = Node(
+            project_id=
+                project_id,
+
+            title=
+                data.title,
+
+            node_type=
+                "concept",
+
+            description=""
+        )
+
+        db.add(node)
+
+        db.commit()
+
+        db.refresh(node)
+
+        return {
+            "id": node.id,
+            "title": node.title
+        }
+
+    finally:
+        db.close()
+
+
+@app.get(
+    "/nodes/{node_id}/concept-suggestions"
+)
+def concept_suggestions(
+    node_id: int
+):
+    db = SessionLocal() 
+
+    try:
+        node = (
+        db.query(Node)
+        .filter(
+            Node.id == node_id
+        )
+        .first()
+        )
+        
+        prompt = f"""
+            Return JSON only.
+
+            Node:
+            {node.title}
+
+            Description:
+            {node.description}
+
+            Suggest 5 concepts
+            that should exist
+            in the knowledge graph.
+
+            Format:
+
+            {{
+            "concepts": []
+            }}
+            """
+        
+        result = ask_model(prompt)
+
+        return json.loads(result)
+    finally:
+        db.close()
+
+@app.get("/testing")
+def test_qwen():
+
+    # Groq is an online provider known for extreme speed
+    response = ask_model(
+    "Hello OpenRouter!", 
+    provider="openrouter", 
+    model="anthropic/claude-3-haiku"
+)
+    print(response)
+    return response
+
+@app.get(
+    "/ai-settings"
+)
+def get_ai_settings():
+
+    db = SessionLocal()
+
+    try:
+
+        settings = (
+            db.query(
+                AISettings
+            )
+            .first()
+        )
+
+        return settings
+
+    finally:
+
+        db.close()
+
+@app.put(
+    "/ai-settings"
+)
+def update_ai_settings(
+    data: AISettingsUpdate
+):
+
+    db = SessionLocal()
+
+    try:
+
+        settings = (
+            db.query(
+                AISettings
+            )
+            .first()
+        )
+
+        settings.provider = (
+            data.provider
+        )
+
+        settings.model = (
+            data.model
+        )
+
+        db.commit()
+
+        return settings
+
+    finally:
+
+        db.close()
+
+@app.get(
+    "/available-models"
+)
+def available_models():
+
+    import requests
+
+    ollama_models = []
+
+    try:
+
+        response = requests.get(
+            "http://localhost:11434/api/tags"
+        )
+
+        data = response.json()
+
+        for model in data.get(
+            "models",
+            []
+        ):
+
+            ollama_models.append({
+                "provider": "ollama",
+                "model": model["name"]
+            })
+
+    except:
+
+        pass
+
+    cloud_models = [
+
+        {
+            "provider": "openai",
+            "model": "gpt-4o"
+        },
+
+
+        {
+            "provider": "groq",
+            "model": "llama-3.3-70b"
+        },
+
+        {
+            "provider": "groq",
+            "model": "llama-3.3-70b-versatile"
+        },
+
+        {
+            "provider": "groq",
+            "model": "llama-3.1-8b-instant"
+        },
+
+        {
+            "provider": "openrouter",
+            "model": "anthropic/claude-3-haiku"
+        },
+
+        {
+            "provider": "openrouter",
+            "model": "anthropic/claude-3.5-sonnet"
+        }
+
+    ]
+
+    return (
+        ollama_models
+        +
+        cloud_models
+    )
+
+@app.get("/test-ai-settings")
+def test_ai_settings():
+
+    db = SessionLocal()
+
+    try:
+
+        settings = (
+            db.query(AISettings)
+            .first()
+        )
+
+        prompt = (
+            "Respond with exactly: "
+            f"Hello this is {settings.model}"
+        )
+
+        result = ask_model(
+            prompt=prompt,
+            provider=settings.provider,
+            model=settings.model
+        )
+
+        return {
+            "provider": settings.provider,
+            "model": settings.model,
+            "response": result
+        }
+
+    finally:
+
+        db.close()
+
+@app.get("/debug-ai-settings")
+def debug_ai_settings():
+
+    db = SessionLocal()
+
+    settings = (
+        db.query(AISettings)
+        .first()
+    )
+
+    return {
+        "provider":
+            settings.provider,
+        "model":
+            settings.model
+    }

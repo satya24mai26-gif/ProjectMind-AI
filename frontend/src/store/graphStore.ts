@@ -16,6 +16,10 @@ import {
 type GraphState = {
   nodes: Node[];
   edges: Edge[];
+
+  analyticsRefresh: number;
+
+  refreshAnalytics: () => void;
   
 
   onNodesChange: OnNodesChange;
@@ -52,6 +56,7 @@ type GraphState = {
       description?: string;
       notes?: string;
       nodeType?: string;
+      tags?:string;
     }
   ) => void;
 
@@ -86,6 +91,18 @@ export const useGraphStore = create<GraphState>()(
         set({
           nodes,
         });
+      },
+
+      analyticsRefresh: 0,
+
+      refreshAnalytics: () => {
+
+        set({
+          analyticsRefresh:
+            get()
+              .analyticsRefresh + 1
+        });
+
       },
 
       setEdges: (edges) => {
@@ -170,7 +187,7 @@ export const useGraphStore = create<GraphState>()(
 
       selectedEdgeId: null,
 
-selectedProjectId: 1,
+selectedProjectId: 0,
 
 setSelectedProjectId: (
   id

@@ -1,7 +1,7 @@
 from sqlalchemy import Column
 from sqlalchemy import Integer
 from sqlalchemy import String
-
+from sqlalchemy import Boolean
 from .db import Base
 
 from sqlalchemy import Text
@@ -74,6 +74,11 @@ class Node(Base):
         default=100
     )
 
+    tags = Column(
+    String,
+    default=""
+    )
+
 
 class Message(Base):
     __tablename__ = "messages"
@@ -126,4 +131,47 @@ class Relationship(Base):
     relation_type = Column(
         String,
         nullable=False
+    )
+
+
+class AISettings(Base):
+
+    __tablename__ = "ai_settings"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    provider = Column(
+        String,
+        default="ollama"
+    )
+
+    model = Column(
+        String,
+        default="qwen3:8b"
+    )
+
+class AIModel(Base):
+
+    __tablename__ = "ai_models"
+
+    id = Column(
+        Integer,
+        primary_key=True
+    )
+
+    provider = Column(
+        String
+    )
+
+    model_name = Column(
+        String
+    )
+
+    enabled = Column(
+        Boolean,
+        default=True
     )
