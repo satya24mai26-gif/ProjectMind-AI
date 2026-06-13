@@ -1,6 +1,13 @@
-from sqlalchemy import Column
-from sqlalchemy import Integer
-from sqlalchemy import String
+from datetime import datetime, UTC
+
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Text,
+    DateTime
+)
+
 from sqlalchemy import Boolean
 from .db import Base
 
@@ -175,3 +182,53 @@ class AIModel(Base):
         Boolean,
         default=True
     )
+
+class NodeChatMessage(Base):
+
+    __tablename__ = "node_chat_messages"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    node_id = Column(
+        Integer,
+        nullable=False
+    )
+
+    role = Column(
+        String,
+        nullable=False
+    )
+
+    content = Column(
+        Text,
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.now(UTC)
+    )
+
+class ProjectChatMessage(Base):
+    __tablename__ = "project_chat_messages"
+    
+    # Permits runtime schema overrides during development reloads
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, nullable=False, index=True)
+    role = Column(String, nullable=False) # "user" or "assistant"
+    content = Column(Text, nullable=False)
+    
+    # Self-referencing link maps nested thread hierarchies
+    parent_id = Column(
+        Integer, 
+        ForeignKey("project_chat_messages.id", ondelete="CASCADE"), 
+        nullable=True
+    )
+    
+    created_at = Column(DateTime, default=datetime.now(UTC))

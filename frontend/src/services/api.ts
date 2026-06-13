@@ -82,6 +82,8 @@ export async function updateNode(
     relationType: string,
     projectId: number
   ) {
+
+    console.log(sourceNodeId, targetNodeId, relationType, projectId)
     const response = await fetch(
       `${API_URL}/relationships`,
       {
@@ -316,13 +318,14 @@ export async function getRelationshipSuggestions(
 }
 
 export async function addMissingConcept(
-  projectId: number,
-  title: string
+  data: any
 ) {
+
+  console.log("vasavi satya.................",data)
 
   const response =
     await fetch(
-      `${API_URL}/projects/${projectId}/add-concept`,
+      `${API_URL}/add-concept`,
       {
         method: "POST",
 
@@ -331,9 +334,7 @@ export async function addMissingConcept(
             "application/json",
         },
 
-        body: JSON.stringify({
-          title,
-        }),
+        body: JSON.stringify(data),
       }
     );
 
@@ -415,4 +416,63 @@ getAvailableModels() {
 
   return response.json();
 
+}
+
+export async function
+analyzeGraphRelationships(
+  projectId: number
+) {
+
+  const response =
+    await fetch(
+      `${API_URL}/projects/${projectId}/relationship-analysis`
+    );
+
+  return response.json();
+
+}
+
+export async function repairNode(
+  nodeId: number
+) {
+  const response =
+    await fetch(
+      `${API_URL}/nodes/${nodeId}/repair`,
+      {
+        method: "POST",
+      }
+    );
+
+  return response.json();
+}
+
+// src/services/api.ts
+
+export async function askProjectAIAdvanced(
+  projectId: number,
+  question: string,
+  editMessageId?: number | null,
+  isRegenerate?: boolean,
+  clearAll?: boolean,
+  deletePairId?: number | null,
+  parentId?: number | null
+) {
+  const response = await fetch(`${API_URL}/projects/${projectId}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      question,
+      edit_message_id: editMessageId || null,
+      is_regenerate: isRegenerate || false,
+      clear_all: clearAll || false,
+      delete_pair_id: deletePairId || null,
+      parent_id: parentId || null
+    }),
+  });
+  return response.json();
+}
+
+export async function fetchProjectChatHistory(projectId: number) {
+  const response = await fetch(`${API_URL}/projects/${projectId}/chat-history`);
+  return response.json();
 }

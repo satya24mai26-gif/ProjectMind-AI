@@ -6,7 +6,7 @@ import { useGraphStore } from "../../store/graphStore";
 
 import { updateNode as updateNodeApi } from "../../services/api";
 
-import { deleteNode, getContext } from "@/services/api";
+import { deleteNode, getContext, repairNode } from "@/services/api";
 
 import { buildContext } from "../../services/contextBuilder";
 
@@ -14,7 +14,6 @@ import { getRelationshipSuggestions } from "@/services/api";
 
 import { useState } from "react";
 
-import { useEffect } from "react";
 
 import { createRelationship } from "../../services/api";
 
@@ -60,56 +59,19 @@ export default function NodeInspector() {
     setLoadingConcepts
   ] = useState(false);
 
-  const loadGraph = async () => {
-    const dbNodes = await getNodes(selectedProjectId);
+  const [
+    repairing,
+    setRepairing
+  ] = useState(false);
 
-    const dbRelationships = await getRelationships(selectedProjectId);
+  const triggerGraphRefresh =
+  useGraphStore(
+    (state) =>
+      state.triggerGraphRefresh
+  );
 
-    const flowNodes = dbNodes.map((node: any, index: number) => ({
-      id: String(node.id),
 
-      position: {
-        x: isNaN(Number(node.position_x)) ? 100 : Number(node.position_x),
 
-        y: isNaN(Number(node.position_y)) ? 100 : Number(node.position_y),
-      },
-
-      type: "projectmind",
-
-      data: {
-        title: node.title,
-        description: node.description,
-        nodeType: node.node_type,
-        notes: node.notes,
-        tags: node.tags || "",
-        messages: [],
-      },
-    }));
-    
-
-    const validNodeIds = new Set(flowNodes.map((node: any) => node.id));
-
-    const safeRelationships = Array.isArray(dbRelationships)
-      ? dbRelationships
-      : [];
-
-    const flowEdges = safeRelationships
-      .filter(
-        (relationship: any) =>
-          validNodeIds.has(String(relationship.source_node_id)) &&
-          validNodeIds.has(String(relationship.target_node_id))
-      )
-      .map((relationship: any) => ({
-        id: String(relationship.id),
-        source: String(relationship.source_node_id),
-        target: String(relationship.target_node_id),
-        label: relationship.relation_type,
-      }));
-
-    setNodes(flowNodes);
-    setEdges(flowEdges);
-    refreshAnalytics();
-  };
 
   const updateNode = useGraphStore((state) => state.updateNode);
 
@@ -197,7 +159,7 @@ export default function NodeInspector() {
         )
     );
 
-    await loadGraph();
+    triggerGraphRefresh();
   };
 
   const acceptAllConcepts =
@@ -237,31 +199,31 @@ async () => {
   }
 
   setConceptResult(
-    `✓ ${added} Concepts Added`
+    `${added} concepts added`
   );
 
   setConceptSuggestions([]);
 
-  await loadGraph();
+  triggerGraphRefresh();
 
 };
 
   return (
-    <div className="absolute top-0 right-0 w-[320px] h-full bg-white border-l p-4 z-20 shadow-lg overflow-y-auto">
-      <div className="mb-6">
-        <h2 className="text-xl font-bold">Node Details</h2>
+    <div className="absolute right-0 top-0 z-20 h-full w-[320px] overflow-y-auto border-l border-slate-200 bg-white p-4 shadow-2xl">
+      <div className="mb-6 border-b border-slate-200 pb-4">
+        <h2 className="text-lg font-semibold text-slate-950">Node Details</h2>
 
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-slate-500">
           Edit and manage the selected node
         </p>
       </div>
 
       <div className="space-y-6">
         <div>
-          <label className="text-sm text-gray-500 block mb-2">Title</label>
+          <label className="mb-2 block text-sm font-medium text-slate-600">Title</label>
 
           <div>
-            <label className="text-sm text-gray-500 block mb-2">
+            <label className="mb-2 block text-sm font-medium text-slate-600">
               Node Type
             </label>
 
@@ -272,7 +234,7 @@ async () => {
                   nodeType: e.target.value,
                 })
               }
-              className="w-full border rounded px-5 py-2"
+              className="mb-3 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
             >
               <option value="concept">Concept</option>
 
@@ -287,6 +249,12 @@ async () => {
               <option value="paper">Paper</option>
 
               <option value="research_question">Research Question</option>
+
+              {!["concept", "technology", "algorithm", "component", "dataset", "paper", "research_question"].includes(selectedNode.data.nodeType) && (
+                <option value={selectedNode.data.nodeType}>
+                  {selectedNode.data.nodeType || "Unknown Type"}
+                </option>
+              )}
             </select>
           </div>
 
@@ -294,24 +262,24 @@ async () => {
             type="text"
             value={selectedNode.data.title}
             onChange={handleTitleChange}
-            className="w-full border rounded px-3 py-2"
+            className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
           />
         </div>
 
         <div>
-          <label className="text-sm text-gray-500 block mb-2">
+          <label className="mb-2 block text-sm font-medium text-slate-600">
             Description
           </label>
 
           <textarea
             value={selectedNode.data.description}
             onChange={handleDescriptionChange}
-            className="w-full border rounded px-3 py-2 min-h-[120px]"
+            className="min-h-[120px] w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
           />
         </div>
 
         <div>
-          <label className="text-sm text-gray-500 block mb-2">Tags</label>
+          <label className="mb-2 block text-sm font-medium text-slate-600">Tags</label>
 
           <input
             type="text"
@@ -322,7 +290,7 @@ async () => {
               })
             }
             placeholder="faiss, embeddings, vector-search"
-            className="w-full border rounded px-3 py-2"
+            className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
           />
 
           <div className="flex gap-2 flex-wrap mt-2">
@@ -349,7 +317,7 @@ async () => {
 
         <div>
           <div>
-            <label className="text-sm text-gray-500 block mb-2">Notes</label>
+            <label className="mb-2 block text-sm font-medium text-slate-600">Notes</label>
 
             <textarea
               value={selectedNode.data.notes || ""}
@@ -358,7 +326,7 @@ async () => {
                   notes: e.target.value,
                 })
               }
-              className="w-full border rounded px-3 py-2 min-h-[200px]"
+              className="min-h-[180px] w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
             />
           </div>
 
@@ -381,9 +349,77 @@ async () => {
 
                 setAcceptResult("Saved");
               }}
-              className="bg-black text-white px-4 py-2 rounded"
+              className="rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"
             >
               Save Node
+            </button>
+
+            <button
+
+              onClick={async () => {
+
+                setRepairing(true);
+
+                
+                const repaired =
+                  await repairNode(
+                    Number(selectedNode.id)
+                  );
+
+                  setNodes(
+                    nodes.map(node =>
+                      node.id === selectedNode.id
+                        ? {
+                            ...node,
+                            data: {
+                              ...node.data,
+                              description:
+                                repaired.node.description,
+                              notes:
+                                repaired.node.notes,
+                              tags:
+                                repaired.node.tags,
+                              nodeType:
+                                repaired.node.node_type
+                            }
+                          }
+                        : node
+                    )
+                  )
+
+                console.log(
+                  "AFTER REPAIR",
+                  repaired.node
+                );
+
+                console.log(
+                  "CURRENT NODE",
+                  selectedNode.data
+                );
+
+                triggerGraphRefresh();
+
+                setRepairing(false);
+
+              }}
+
+              className="
+              w-full
+              bg-violet-600
+              hover:bg-violet-700
+              text-white
+              py-2
+              rounded-lg
+              font-medium
+              "
+            >
+
+              {
+                repairing
+                  ? "Repairing..."
+                  : "🧠 AI Repair Node"
+              }
+
             </button>
 
             <button
@@ -402,7 +438,7 @@ async () => {
 
                 refreshAnalytics();
               }}
-              className="bg-red-500 text-white px-4 py-2 rounded ml-2"
+              className="rounded-md border border-rose-200 bg-rose-50 px-4 text-sm font-medium text-rose-700 hover:bg-rose-100"
             >
               Delete Node
             </button>
@@ -501,12 +537,12 @@ async () => {
                   }
                 }
 
-                await loadGraph();
+                triggerGraphRefresh();
 
                 setRelationshipSuggestions([]);
 
                 setAcceptResult(
-                  `✓ ${added} Relationships Added | ✓ ${existed} Already Existed`
+                  `${added} relationships added | ${existed} already existed`
                 );
               }}
             >
@@ -577,13 +613,13 @@ async () => {
                     selectedProjectId
                   );
 
-                  await loadGraph();
+                  triggerGraphRefresh();
 
                   setRelationshipSuggestions((prev) =>
                     prev.filter((_, i) => i !== index)
                   );
 
-                  setAcceptResult("✓ Relationship Added");
+                  setAcceptResult("Relationship added");
                 }}
               >
                 Accept

@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 BASE_X = 100
 BASE_Y = 100
-OFFSET = 50  # max distance from base position
+OFFSET = 500  # max distance from base position
 
 
 class NodeCreate(BaseModel):

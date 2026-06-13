@@ -18,3 +18,12 @@ class AISettingsUpdate(
 ):
     provider: str
     model: str
+
+class ChatMessageCreate(BaseModel):
+    node_id: int
+    content: str
+    sender: str
+    is_assistant: bool
+
+class ChatMessageUpdate(BaseModel):
+    content: str

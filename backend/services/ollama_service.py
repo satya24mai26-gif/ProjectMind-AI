@@ -3,16 +3,47 @@ import os
 import re
 from typing import Optional
 from dotenv import load_dotenv
+from database.db import SessionLocal
+from database.models import (AISettings)
 
 
 load_dotenv()
 # Reusable session for faster consecutive requests
 session = requests.Session()
 
+try:
+    db = SessionLocal()
+    settings = (
+        db.query(AISettings)
+        .first()
+    )
+
+
+    if not settings:
+
+        settings = AISettings(
+            provider="ollama",
+            model="qwen3:8b"
+        )
+
+        db.add(settings)
+
+        db.commit()
+    else:
+
+        print(
+            settings.provider,
+            settings.model,
+            settings.id
+        )
+    
+finally:
+    db.close()
+
 def ask_model(
     prompt: str,
-    provider: str = "ollama",           # Default to local Ollama
-    model: str = "qwen2.5:1.5b",        # Default model for Ollama
+    provider: str = settings.provider,           # Default to local Ollama
+    model: str = settings.model,        # Default model for Ollama
     api_key: Optional[str] = None,      # API key (not needed for Ollama)
     temperature: float = 0.3,           # Default temperature
     timeout: int = 120                  # Default timeout in seconds
@@ -94,16 +125,11 @@ def ask_model(
         print(f"Network Error ({provider}): {req_err}")
         return None
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-
-AI_PROVIDER = "ollama"
-
-OLLAMA_MODEL = "qwen3:8b"
 
 def ask_ai(
     prompt: str,
-    provider: str = "openrouter",       # Swap defaults here if you prefer 'ollama'
-    model: str = "anthropic/claude-3-haiku", # Default model for your active provider
+    provider: str = settings.provider,       # Swap defaults here if you prefer 'ollama'
+    model: str = settings.model, # Default model for your active provider
     temperature: float = 0.1,           # Low temperature is critical for strict JSON
     timeout: int = 60
 ) -> str:  # Always returns a string to protect the frontend JSON.parse()
@@ -159,6 +185,8 @@ def ask_ai(
     try:
         response = session.post(base_url, headers=headers, json=payload, timeout=timeout)
         response.raise_for_status()
+
+        print(response.json)
         
         raw_content = response.json()["choices"][0]["message"]["content"].strip()
         
@@ -177,56 +205,69 @@ def ask_ai(
         # JSON.parse() succeeds, and relationshipSuggestions.length becomes 0 safely.
         return "[]"
 
-def ask_ollama(prompt: str):
 
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": "qwen3:8b",
-            "prompt": prompt,
-            "options": {
-            "temperature": 0.3
+
+def ask_ai_chat(
+    prompt: str,
+    provider: str = settings.provider,       # Default chat provider
+    model: str = settings.model,             # Default chat model
+    temperature: float = 0.7,                 # 0.7 is perfect for creative & natural markdown (ChatGPT style)
+    timeout: int = 60
+) -> str:
+    """
+    Unified AI wrapper optimized for natural Markdown text/chat responses (ChatGPT/Gemini style).
+    """
+    headers = {"Content-Type": "application/json"}
+
+    print(f"\n[CHAT MODEL CALL]: {provider} -> {model}")
+    
+    # 1. Routing endpoints
+    if provider == "ollama":
+        base_url = "http://localhost:11434/v1/chat/completions"
+        api_key_val = "ollama"
+    elif provider == "openrouter":
+        base_url = "https://openrouter.ai/api/v1/chat/completions"
+        api_key_val = os.getenv("OPENROUTER_API_KEY")
+        headers["Authorization"] = f"Bearer {api_key_val}"
+    elif provider == "groq":
+        base_url = "https://api.groq.com/openai/v1/chat/completions"
+        api_key_val = os.getenv("GROQ_API_KEY")
+        headers["Authorization"] = f"Bearer {api_key_val}"
+    elif provider == "openai":
+        base_url = "https://api.openai.com/v1/chat/completions"
+        api_key_val = os.getenv("OPENAI_API_KEY")
+        headers["Authorization"] = f"Bearer {api_key_val}"
+    else:
+        print(f"Error: Unsupported provider '{provider}'")
+        return "I'm sorry, but my chat system is currently misconfigured."
+
+    # Fallback if API key is missing
+    if not api_key_val:
+        print(f"Error: API Key missing for provider '{provider}'")
+        return "I encounter an authentication issue. Please check the server configuration."
+
+    # 2. Standard Chat Payload (No JSON enforcement)
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "system", 
+                "content": "you are more then  ultra super pro altimate multi maz z++ designer developer Frontier Model SOTA, Follow the instructions contained in the user prompt, Format your responses with clean, readable Markdown (bolding, bullet points, headers) where appropriate. Respond naturally and accurately. not analyze content if only user ask small queations like hii, helo give simple responed for simple queations, if hard qeation give big respond."
             },
-            "stream": False,
-        },
-        timeout=300
-    )
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": temperature,
+        "stream": False
+        # "response_format" removed entirely to allow free-form markdown text response
+    }
 
-    data = response.json()
+    try:
+        response = session.post(base_url, headers=headers, json=payload, timeout=timeout)
+        response.raise_for_status()
+        
+        raw_content = response.json()["choices"][0]["message"]["content"].strip()
+        return raw_content
 
-    return data["response"]
-
-def ask_gap_analysis(prompt: str):
-
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": "qwen3:8b", 
-
-            "prompt": f"/no_think\n{prompt}",
-
-            "stream": False,
-
-            "options": {
-                "temperature": 0.1,
-                "num_predict": 400
-            }
-        },
-        timeout=600
-    )
-
-    data = response.json()
-
-    if "error" in data:
-
-        raise Exception(
-            data["error"]
-        )
-
-    print("\nGAP ANALYSIS DATA:")
-    print(data)
-
-    return data.get(
-        "response",
-        ""
-    )
+    except Exception as e:
+        print(f"AI Chat Call failed processing for {provider}: {e}")
+        return "I'm having trouble connecting to my mind engine right now. Please try again in a moment."

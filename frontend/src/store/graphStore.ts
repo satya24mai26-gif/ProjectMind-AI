@@ -20,6 +20,12 @@ type GraphState = {
   analyticsRefresh: number;
 
   refreshAnalytics: () => void;
+
+  refreshGraph: number;
+
+  triggerGraphRefresh: () => void;
+
+  refreshGraphData: () => void;
   
 
   onNodesChange: OnNodesChange;
@@ -34,6 +40,8 @@ type GraphState = {
   selectedNodeId: string | null;
 
   setSelectedNode: (id: string | null) => void;
+
+  setMessages: (nodeId: string | null, messages: any[]) => void;
 
   setNodes: (nodes: Node[]) => void;
 
@@ -71,6 +79,8 @@ selectedProjectId: number;
 setSelectedProjectId: (
   id: number
 ) => void;
+
+
   
 };
 
@@ -92,6 +102,32 @@ export const useGraphStore = create<GraphState>()(
           nodes,
         });
       },
+
+      // Inside your Zustand store creation actions:
+      setMessages: (nodeId: string | null, messages: any[]) => set((state) => ({
+        nodes: state.nodes.map((node) =>
+          node.id === nodeId
+            ? { ...node, data: { ...node.data, messages } }
+            : node
+        ),
+      })),
+
+      refreshGraph: 0,
+
+      triggerGraphRefresh: () =>
+        set((state) => ({
+          refreshGraph:
+            state.refreshGraph + 1,
+        })),
+
+      refreshGraphData: () => {
+
+          set({
+            refreshGraph:
+              get().refreshGraph + 1
+          });
+        
+        },
 
       analyticsRefresh: 0,
 

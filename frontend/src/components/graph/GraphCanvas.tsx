@@ -33,6 +33,14 @@ export default function GraphCanvas() {
 
   const setEdges = useGraphStore((state) => state.setEdges);
 
+  const [hoveredNode, setHoveredNode] =
+  useState<string | null>(null);
+
+  const [
+    hoveredEdge,
+    setHoveredEdge
+  ] = useState<string | null>(null);
+
   const onNodeClick: NodeMouseHandler = (_, node) => {
     setSelectedEdge(null);
 
@@ -140,12 +148,67 @@ const filteredEdges =
       )
   );
 
+  const enhancedEdges =
+  edges.map((edge) => {
 
+    const outgoing =
+      edge.source === hoveredNode;
+
+    const incoming =
+      edge.target === hoveredNode;
+
+    const edgeHovered =
+      hoveredEdge === edge.id;
+
+    return {
+
+      ...edge,
+
+      animated:
+        outgoing ||
+        incoming ||
+        edgeHovered,
+
+      style: {
+
+        strokeWidth:
+          edgeHovered
+            ? 6
+            : outgoing || incoming
+            ? 4
+            : 2,
+
+        stroke:
+          edgeHovered
+            ? "#8b5cf6"     // Purple
+            : outgoing
+            ? "#3b82f6"     // Blue
+            : incoming
+            ? "#00FF00"     // Red
+            : "#94a3b8",    // Gray
+
+        filter:
+          edgeHovered
+            ? "drop-shadow(0 0 8px #8b5cf6)"
+            : outgoing
+            ? "drop-shadow(0 0 5px #3b82f6)"
+            : incoming
+            ? "drop-shadow(0 0 5px #00FF00)"
+            : "none",
+
+        transition:
+          "all 0.2s ease",
+
+      },
+
+    };
+
+  });
   
 
   return (
-    <div className="w-full h-full">
-      <div className="flex gap-3 mb-4">
+    <div className="relative h-full w-full">
+      <div className="absolute left-4 top-4 z-10 flex w-[min(560px,calc(100%-32px))] gap-2 rounded-lg border border-slate-200 bg-white/95 p-2 shadow-lg">
       <input
         type="text"
         placeholder="Search nodes..."
@@ -154,12 +217,19 @@ const filteredEdges =
           setSearchTerm(e.target.value)
         }
         className="
+        h-10
+        min-w-0
+        flex-1
+        rounded-md
         border
-        rounded
+        border-slate-300
+        bg-slate-50
         px-3
-        py-2
-        w-full
-        mb-4
+        text-sm
+        outline-none
+        focus:border-cyan-500
+        focus:ring-2
+        focus:ring-cyan-100
         "
       />
 
@@ -171,10 +241,17 @@ const filteredEdges =
           )
         }
         className="
+        h-10
+        rounded-md
         border
-        rounded
+        border-slate-300
+        bg-white
         px-3
-        py-2
+        text-sm
+        outline-none
+        focus:border-cyan-500
+        focus:ring-2
+        focus:ring-cyan-100
         "
       >
         <option value="all">
@@ -201,7 +278,7 @@ const filteredEdges =
 
       <ReactFlow
         nodes={filteredNodes}
-        edges={filteredEdges}
+        edges={enhancedEdges}
         nodeTypes={nodeTypes}
         onNodeClick={onNodeClick}
         onNodesChange={onNodesChange}
@@ -209,6 +286,13 @@ const filteredEdges =
           setSelectedNode(null);
 
           setSelectedEdge(edge.id);
+        }}
+        onPaneClick={() => {
+
+          setSelectedNode(null);
+        
+          setSelectedEdge(null);
+        
         }}
         onEdgesChange={onEdgesChange}
         onConnect={handleConnect}
@@ -219,6 +303,30 @@ const filteredEdges =
             node.position.x,
             node.position.y
           );
+        }}
+
+        onNodeMouseEnter={(_, node) => {
+          setHoveredNode(node.id);
+        }}
+        
+        onNodeMouseLeave={() => {
+          setHoveredNode(null);
+        }}
+
+        onEdgeMouseEnter={(_, edge) => {
+
+          setHoveredEdge(
+            edge.id
+          );
+        
+        }}
+        
+        onEdgeMouseLeave={() => {
+        
+          setHoveredEdge(
+            null
+          );
+        
         }}
       >
         <Background />

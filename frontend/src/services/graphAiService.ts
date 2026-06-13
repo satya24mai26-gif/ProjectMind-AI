@@ -1,24 +1,21 @@
 import { buildContext } from "./contextBuilder";
-import { askAI }
-from "./aiApi";
+import { askAI } from "./aiApi";
 
 export async function askGraphAI(
   selectedNode: any,
   nodes: any[],
   edges: any[],
   question: string
-) {
-  const context = buildContext(
-    selectedNode,
-    edges,
-    nodes
-  );
+): Promise<string> {
+  if (!selectedNode) throw new Error("A valid active node context is required.");
 
-  const result =
-  await askAI(
-    question,
-    context
-  );
+  // Build the state structure
+  const context = buildContext(selectedNode, edges, nodes);
 
-return result.answer;
+  // Await and extract payload safely
+  const result = await askAI(question, context);
+  
+  return result.answer || "No response received from the engine.";
 }
+
+
