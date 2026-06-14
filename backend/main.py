@@ -3,6 +3,7 @@ from fastapi import FastAPI
 import json
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from services.ai_service import get_relevant_graph_context
 from database.db import engine, get_db
 from database.models import Base, NodeChatMessage
 
@@ -2231,7 +2232,8 @@ def ai_chat(data: ProjectAIRequest, db: Session = Depends(get_db)):
     db.add(assistant_message)
     db.commit()
 
-    return {"answer": answer}
+    return {"answer": answer,
+            "user_message_id": node_id}
 
 
 @app.get("/nodes/{node_id}/chat-history")
@@ -2275,6 +2277,9 @@ class ProjectChatAIRequest(BaseModel):
     delete_pair_id: Optional[int] = None
     parent_id: Optional[int] = None
 
+# Make sure to import your new helper function at the top of your file!
+# from backend.services.rag_helper import get_relevant_graph_context
+
 @app.post("/projects/{project_id}/chat")
 def project_chat(project_id: int, data: ProjectChatAIRequest, db: Session = Depends(get_db)):
     # --- 1. CASCADE PAIR & SUB-BRANCH THREAD DELETION ---
@@ -2302,7 +2307,6 @@ def project_chat(project_id: int, data: ProjectChatAIRequest, db: Session = Depe
             
             db.commit()
 
-            # Cascade: clear child branches linked to this deleted item context anchor
             if user_msg_id:
                 db.query(ProjectChatMessage).filter(
                     ProjectChatMessage.project_id == project_id,
@@ -2321,6 +2325,8 @@ def project_chat(project_id: int, data: ProjectChatAIRequest, db: Session = Depe
     # --- 3. THE REGENERATION INLINE MAP CYCLE ---
     active_parent_id = data.parent_id
     target_question = data.question
+    last_ai = None  
+    new_user_prompt_id = None
 
     if data.is_regenerate:
         last_ai = db.query(ProjectChatMessage).filter(
@@ -2344,7 +2350,13 @@ def project_chat(project_id: int, data: ProjectChatAIRequest, db: Session = Depe
             target_msg.content = data.question
             db.commit()
             active_parent_id = target_msg.parent_id
-            target_question = data.question
+            
+            new_user_prompt_id = target_msg.id
+
+            last_ai = db.query(ProjectChatMessage).filter(
+                ProjectChatMessage.parent_id == target_msg.id, 
+                ProjectChatMessage.role == "assistant"
+            ).first()
 
             # Wipe trailing context logs off this modified question branch
             db.query(ProjectChatMessage).filter(
@@ -2368,8 +2380,7 @@ def project_chat(project_id: int, data: ProjectChatAIRequest, db: Session = Depe
         db.refresh(user_message)
         new_user_prompt_id = user_message.id
 
-    # --- SOLIDIFIED CHROMATIC LINEAGE WALKER ALGORITHM ---
-    # Traverses the multi-threaded chat tree backwards to gather conversation context
+    # --- 6. CHROMATIC LINEAGE WALKER (CHRONOLOGICAL RECONSTRUCTION) ---
     linear_history = []
     current_trace_id = active_parent_id
 
@@ -2377,7 +2388,8 @@ def project_chat(project_id: int, data: ProjectChatAIRequest, db: Session = Depe
         ancestor_user = db.query(ProjectChatMessage).filter(ProjectChatMessage.id == current_trace_id).first()
         if not ancestor_user:
             break
-        linear_history.append(f"user: {ancestor_user.content}")
+        
+        block = [f"user: {ancestor_user.content}"]
         
         ancestor_ai = db.query(ProjectChatMessage).filter(
             ProjectChatMessage.project_id == project_id,
@@ -2386,47 +2398,40 @@ def project_chat(project_id: int, data: ProjectChatAIRequest, db: Session = Depe
         ).first()
         
         if ancestor_ai:
-            linear_history.append(f"assistant: {ancestor_ai.content}")
+            block.append(f"assistant: {ancestor_ai.content}")
         
+        linear_history = block + linear_history
         current_trace_id = ancestor_user.parent_id
 
-    linear_history.reverse()
-    linear_history.append(f"user: {target_question}")
     chat_history_str = "\n".join(linear_history)
 
-    # --- PROJECT KNOWLEDGE GRAPH CONTEXT INJECTION ---
-    nodes = db.query(Node).filter(Node.project_id == project_id).all()
-    relationships = db.query(Relationship).filter(Relationship.project_id == project_id).all()
-    node_map = {node.id: node.title for node in nodes}
+    # --- 7. NEW RAG DATA INJECTION ENGINE ---
+    # Instantly scores and matches only the top 5 most contextually relevant nodes
+    context_str = get_relevant_graph_context(
+        project_id=project_id,
+        user_question=target_question,
+        db=db,
+        top_k=5
+    )
 
-    context_str = "PROJECT KNOWLEDGE GRAPH CONTEXT\n\n"
-    for node in nodes:
-        context_str += (
-            f"Node: {node.title}\n"
-            f"Type: {node.node_type}\n"
-            f"Description: {node.description or 'No description'}\n"
-            f"Notes: {node.notes or 'No notes'}\n\n"
-        )
+    # --- 8. STRUCTURAL COMBINED PROMPT ---
+    prompt = f"""You are analyzing a specific conversation path inside a multi-threaded system architecture environment.
 
-    context_str += "\nGRAPH RELATIONSHIPS SYSTEM LINKS\n"
-    for r in relationships:
-        source = node_map.get(r.source_node_id, "Unknown")
-        target = node_map.get(r.target_node_id, "Unknown")
-        context_str += f"{source} --{r.relation_type}--> {target}\n"
-
-    prompt = f"""
-You are ProjectMind AI, a world-class system architecture knowledge graph assistant.
-Your job is helping the user query, analyze, and optimize the overall PROJECT ENVIRONMENT context map.
-Format your responses natively using clean, readable Markdown (headings, lists, bold keywords).
-
-[PROJECT DATA GRAPH CONTEXT]
-{context_str}
-
-## Chronological Conversation Thread History 
+[ACTIVE CONVERSATION PATH HISTORY]
 {chat_history_str}
 
-Answer:
+[CURRENT PROJECT KNOWLEDGE GRAPH CONTEXT (SEMANTIC MATCH)]
+{context_str}
+
+[USER'S NEW DIRECTIVE]
+user: {target_question}
+
+INSTRUCTIONS:
+1. Focus your context strictly on the path history and relevant graph components provided above.
+2. If the user's directive is a simple greeting (e.g., hi, hello, test), ignore the knowledge graph entirely and give a casual, short response.
+3. If the user is asking an architectural or complex structural question, provide an in-depth answer using clear Markdown components (bolding, headers, lists).
 """
+
     # Execute Markdown AI text generation wrapper
     answer = ask_ai_chat(prompt)
 
@@ -2435,12 +2440,15 @@ Answer:
         project_id=project_id,
         role="assistant",
         content=answer,
-        parent_id=new_user_prompt_id if not data.is_regenerate and not data.edit_message_id else last_ai.parent_id
+        parent_id=new_user_prompt_id if not data.is_regenerate and not data.edit_message_id else (last_ai.parent_id if last_ai else active_parent_id)
     )
     db.add(assistant_message)
     db.commit()
 
-    return {"answer": answer}
+    return {
+        "answer": answer,
+        "user_message_id": new_user_prompt_id if not data.is_regenerate and not data.edit_message_id else active_parent_id
+    }
 
 
 @app.get("/projects/{project_id}/chat-history")

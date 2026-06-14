@@ -252,13 +252,22 @@ def ask_ai_chat(
         "messages": [
             {
                 "role": "system", 
-                "content": "you are more then  ultra super pro altimate multi maz z++ designer developer Frontier Model SOTA, Follow the instructions contained in the user prompt, Format your responses with clean, readable Markdown (bolding, bullet points, headers) where appropriate. Respond naturally and accurately. not analyze content if only user ask small queations like hii, helo give simple responed for simple queations, if hard qeation give big respond."
+                "content": (
+                    "You are ProjectMind AI, an elite software architect and world-class knowledge graph assistant.\n\n"
+                    "CRITICAL OUTPUT RULES:\n"
+                    "1. If the user's latest message is a basic greeting, check, or casual test (e.g., 'hi', 'hello', 'hey', 'test'), "
+                    "ignore the project context completely and reply with a warm, single-sentence greeting. DO NOT print graph details.\n"
+                    "2. If the user asks a technical, architectural, or debugging question, provide a deeply analytical response. "
+                    "Structure your output using professional Markdown with clear headers, bold technical keywords, and bullet points."
+                )
             },
             {"role": "user", "content": prompt}
         ],
-        "temperature": temperature,
-        "stream": False
-        # "response_format" removed entirely to allow free-form markdown text response
+        "temperature": temperature,  # Controls creativity (e.g., 0.7)
+        "top_p": 0.9,                # Works with temperature to control text diversity
+        "max_tokens": 3072,          # Protects your system from infinite text generation loops
+        "frequency_penalty": 0.2,    # Gently reduces repetitive phrasing and robotic loops
+        "stream": False              # Set to True later if you want to implement typewriter streaming
     }
 
     try:
